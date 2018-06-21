@@ -1,0 +1,6 @@
+[package]
+name = "kotoba"
+version = "0.1.0"
+authors = ["Anton Filippov <a.filippov@protonmail.com>"]
+
+[dependencies]
