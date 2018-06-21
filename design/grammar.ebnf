@@ -1,0 +1,15 @@
+expression = number 
+           | boolean
+           | string
+           | nil;
+
+digit = ["0"-"9"];
+integer = digit+;
+float = integer "." integer;
+number = integer | float;
+
+boolean = "true" | "false";
+
+string = '"' character* '"';
+
+nil = "nil";
