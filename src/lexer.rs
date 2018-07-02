@@ -106,11 +106,11 @@ impl<'a> Lexer<'a> {
         tokens
     }
 
-    fn current(&self) -> Option<&u8> {
+    fn current(&self) -> Option<&'a u8> {
         self.source.get(self.index)
     }
 
-    fn peek(&self) -> Option<&u8> {
+    fn peek(&self) -> Option<&'a u8> {
         self.source.get(self.index + 1)
     }
 
@@ -126,7 +126,7 @@ impl<'a> Lexer<'a> {
         std::str::from_utf8(&self.source[start..end]).unwrap()
     }
 
-    fn consume_identifier(&mut self) -> &str {
+    fn consume_identifier(&mut self) -> &'a str {
         let start = self.index;
         while let Some(c) = self.current() {
             if !c.is_ascii_alphanumeric() && *c != b'_' {

@@ -1,4 +1,3 @@
-#![feature(nll)]
 mod lexer;
 use lexer::*;
 
