@@ -1,8 +1,3 @@
-expression = number 
-           | boolean
-           | string
-           | nil;
-
 digit = ["0"-"9"];
 integer = digit+;
 float = integer "." integer;
@@ -13,6 +8,14 @@ boolean = "true" | "false";
 string = '"' character* '"';
 
 nil = "nil";
+
+expression = equality;
+equality = comparison (("==" | "!=") comparison)*;
+comparison = addition ((">" | ">=" | "<" | "<=") addition)*;
+addition = multi8n (("+" | "-") multi8n)*;
+multi8n = unary (("*" | "/") unary)*;
+unary = ("!" | "-") unary | primary;
+primary = number | boolean | string | nil | "(" expression ")";
 
 alpha_char = ["A"-"Z" "a"-"z"];
 identifier = (alpha_char | "_") (alpha_char | digit | "_")*;
