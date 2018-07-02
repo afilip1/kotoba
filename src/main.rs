@@ -7,6 +7,19 @@ enum TokenKind {
     Identifier(String),
     StringLiteral(String),
     Nil,
+    Equal,
+    NotEqual,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Bang,
+    OpenParen,
+    CloseParen,
 }
 
 struct Lexer<'a> {
@@ -45,6 +58,67 @@ impl<'a> Lexer<'a> {
                         println!("Unclosed string literal");
                         std::process::exit(1);
                     }
+                }
+                b'=' => if let Some(b'=') = self.source.get(self.index + 1) {
+                    self.index += 2;
+                    tokens.push(TokenKind::Equal);
+                } else {
+                    println!("Assignment is not supported at this time");
+                    std::process::exit(2);
+                },
+                b'!' => match self.source.get(self.index + 1) {
+                    Some(b'=') => {
+                        self.index += 2;
+                        tokens.push(TokenKind::NotEqual);
+                    }
+                    _ => {
+                        self.index += 1;
+                        tokens.push(TokenKind::Bang);
+                    }
+                },
+                b'>' => match self.source.get(self.index + 1) {
+                    Some(b'=') => {
+                        self.index += 2;
+                        tokens.push(TokenKind::GreaterOrEqual);
+                    }
+                    _ => {
+                        self.index += 1;
+                        tokens.push(TokenKind::Greater);
+                    }
+                },
+                b'<' => match self.source.get(self.index + 1) {
+                    Some(b'=') => {
+                        self.index += 2;
+                        tokens.push(TokenKind::LessOrEqual);
+                    }
+                    _ => {
+                        self.index += 1;
+                        tokens.push(TokenKind::Less);
+                    }
+                },
+                b'+' => {
+                    tokens.push(TokenKind::Plus);
+                    self.index += 1;
+                }
+                b'-' => {
+                    tokens.push(TokenKind::Minus);
+                    self.index += 1;
+                }
+                b'*' => {
+                    tokens.push(TokenKind::Star);
+                    self.index += 1;
+                }
+                b'/' => {
+                    tokens.push(TokenKind::Slash);
+                    self.index += 1;
+                }
+                b'(' => {
+                    tokens.push(TokenKind::OpenParen);
+                    self.index += 1;
+                }
+                b')' => {
+                    tokens.push(TokenKind::CloseParen);
+                    self.index += 1;
                 }
                 other => {
                     println!("Unrecognized byte: '{}' (0x{:x})", *other as char, *other);
@@ -101,10 +175,11 @@ impl<'a> Lexer<'a> {
 }
 
 fn main() {
-    let source = "123.434 true false nil \"test \nstring\"";
+    // let source = "123.434 true false nil \"test \nstring\" + - * / == != >= <= > < ! ()";
+    let source = "(1 + 345.67) / some_var >= function(arg)";
     let mut lexer = Lexer::new(source);
 
     let tokens = lexer.tokenize();
 
-    println!("{:?}", tokens);
+    println!("{:#?}", tokens);
 }
