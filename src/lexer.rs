@@ -8,12 +8,12 @@ macro_rules! hashmap {
     });
 }
 
-#[derive(Debug, Clone)]
-pub enum TokenKind {
+#[derive(Debug, Clone, Copy)]
+pub enum TokenKind<'a> {
     Number(f64),
     Boolean(bool),
-    Identifier(String),
-    StringLiteral(String),
+    Identifier(&'a str),
+    StringLiteral(&'a str),
     Nil,
     Equal,
     EqualEqual,
@@ -61,13 +61,13 @@ impl<'a> Lexer<'a> {
                     "true" => TokenKind::Boolean(true),
                     "false" => TokenKind::Boolean(false),
                     "nil" => TokenKind::Nil,
-                    other => TokenKind::Identifier(other.to_owned()),
+                    other => TokenKind::Identifier(other),
                 }),
                 b'"' => {
                     self.index += 1;
                     let string_contents = self.consume_string();
                     if let Some(b'"') = self.current() {
-                        tokens.push(TokenKind::StringLiteral(string_contents.to_owned()));
+                        tokens.push(TokenKind::StringLiteral(string_contents));
                         self.index += 1;
                     } else {
                         println!("Unclosed string literal");
@@ -76,11 +76,11 @@ impl<'a> Lexer<'a> {
                 }
                 c @ b'=' | c @ b'!' | c @ b'>' | c @ b'<' => match self.peek() {
                     Some(b'=') => {
-                        tokens.push(lookahead_map[c].0.clone());
+                        tokens.push(lookahead_map[c].0);
                         self.index += 2;
                     }
                     Some(_) => {
-                        tokens.push(lookahead_map[c].1.clone());
+                        tokens.push(lookahead_map[c].1);
                         self.index += 1;
                     }
                     _ => self.index += 1,
