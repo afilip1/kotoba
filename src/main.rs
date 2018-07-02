@@ -25,12 +25,10 @@ impl<'a> Lexer<'a> {
     fn tokenize(&mut self) -> Vec<TokenKind> {
         let mut tokens = vec![];
 
-        while self.index < self.source.len() {
-            match self.source[self.index] {
+        while let Some(c) = self.source.get(self.index) {
+            match c {
                 b' ' | b'\t' | b'\n' => self.index += 1,
-                b'0'...b'9' => {
-                    tokens.push(TokenKind::Number(self.number()));
-                }
+                b'0'...b'9' => tokens.push(TokenKind::Number(self.number())),
                 b'a'...b'z' | b'A'...b'Z' | b'_' => tokens.push(match self.identifier() {
                     "true" => TokenKind::Boolean(true),
                     "false" => TokenKind::Boolean(false),
@@ -40,7 +38,7 @@ impl<'a> Lexer<'a> {
                 b'"' => {
                     self.index += 1;
                     let string_contents = self.string().to_owned();
-                    if self.index < self.source.len() && self.source[self.index] == b'"' {
+                    if let Some(b'"') = self.source.get(self.index) {
                         self.index += 1;
                         tokens.push(TokenKind::StringLiteral(string_contents));
                     } else {
@@ -49,7 +47,7 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 other => {
-                    println!("Unrecognized byte: '{}' (0x{:x})", other as char, other);
+                    println!("Unrecognized byte: '{}' (0x{:x})", *other as char, *other);
                     self.index += 1;
                 }
             }
@@ -59,7 +57,10 @@ impl<'a> Lexer<'a> {
 
     fn string(&mut self) -> &str {
         let start = self.index;
-        while self.index < self.source.len() && self.source[self.index] != b'"' {
+        while let Some(c) = self.source.get(self.index) {
+            if *c == b'"' {
+                break;
+            }
             self.index += 1;
         }
         let end = self.index;
@@ -68,9 +69,10 @@ impl<'a> Lexer<'a> {
 
     fn identifier(&mut self) -> &str {
         let start = self.index;
-        while self.index < self.source.len()
-            && (self.source[self.index].is_ascii_alphanumeric() || self.source[self.index] == b'_')
-        {
+        while let Some(c) = self.source.get(self.index) {
+            if !c.is_ascii_alphanumeric() && *c != b'_' {
+                break;
+            }
             self.index += 1;
         }
         let end = self.index;
@@ -79,17 +81,13 @@ impl<'a> Lexer<'a> {
 
     fn number(&mut self) -> f64 {
         let start = self.index;
-        while self.index < self.source.len() && (b'0'..=b'9').contains(&self.source[self.index]) {
+        while let Some(b'0'...b'9') = self.source.get(self.index) {
             self.index += 1;
         }
-        if self.index < self.source.len() && self.source[self.index] == b'.' {
-            if self.index + 1 < self.source.len()
-                && (b'0'..=b'9').contains(&self.source[self.index + 1])
-            {
+        if let Some(b'.') = self.source.get(self.index) {
+            if let Some(b'0'...b'9') = self.source.get(self.index + 1) {
                 self.index += 2;
-                while self.index < self.source.len()
-                    && (b'0'..=b'9').contains(&self.source[self.index])
-                {
+                while let Some(b'0'...b'9') = self.source.get(self.index) {
                     self.index += 1;
                 }
             }
@@ -103,7 +101,7 @@ impl<'a> Lexer<'a> {
 }
 
 fn main() {
-    let source = "true false nil \"test \nstring\"";
+    let source = "123.434 true false nil \"test \nstring\"";
     let mut lexer = Lexer::new(source);
 
     let tokens = lexer.tokenize();
