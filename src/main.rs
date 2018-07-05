@@ -1,6 +1,7 @@
 #![feature(rust_2018_preview)]
 
 mod lexer;
+mod parser;
 use crate::lexer::*;
 
 fn main() {
