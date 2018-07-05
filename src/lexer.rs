@@ -1,5 +1,3 @@
-use std;
-
 macro_rules! hashmap {
     ($($key:expr => $value:expr),*) => ({
         let mut tmp = std::collections::HashMap::new();
@@ -36,8 +34,8 @@ pub struct Lexer<'a> {
     index: usize,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Lexer<'a> {
+impl Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
         Lexer {
             source: source.as_bytes(),
             index: 0,

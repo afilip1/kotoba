@@ -1,5 +1,7 @@
+#![feature(rust_2018_preview)]
+
 mod lexer;
-use lexer::*;
+use crate::lexer::*;
 
 fn main() {
     // let source = "123.434 true false nil \"test \nstring\" + - * / == != >= <= > < ! ()";
