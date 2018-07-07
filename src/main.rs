@@ -2,6 +2,7 @@
 
 mod lexer;
 mod parser;
+mod source_stream;
 use crate::lexer::*;
 
 fn main() {
