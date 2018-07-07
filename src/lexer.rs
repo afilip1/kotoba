@@ -1,3 +1,6 @@
+use crate::source_stream::*;
+use std::collections::HashMap;
+
 macro_rules! hashmap {
     ($($key:expr => $value:expr),*) => ({
         let mut tmp = std::collections::HashMap::new();
@@ -7,23 +10,17 @@ macro_rules! hashmap {
 }
 
 #[derive(Debug)]
-pub struct Position {
-    pub line: usize,
-    pub character: usize,
-}
-
-#[derive(Debug)]
-pub struct Token<'a> {
-    pub kind: TokenKind<'a>,
+pub struct Token {
+    pub kind: TokenKind,
     pub position: Position,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum TokenKind<'a> {
+#[derive(Debug, Clone)]
+pub enum TokenKind {
     Number(f64),
     Boolean(bool),
-    Identifier(&'a str),
-    StringLiteral(&'a str),
+    Identifier(String),
+    StringLiteral(String),
     Nil,
     Equal,
     EqualEqual,
@@ -42,218 +39,146 @@ pub enum TokenKind<'a> {
 }
 
 pub struct Lexer<'a> {
-    source: &'a [u8],
-    index: usize,
-    cur_line: usize,
-    cur_char: usize,
+    source: SourceStream<'a>,
+    lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
 }
 
 impl Lexer<'a> {
+    /// Initializes a new `Lexer` with the given source code `&str`.
+    /// `source` must be a valid ASCII string.
     pub fn new(source: &'a str) -> Self {
-        Lexer {
-            source: source.as_bytes(),
-            index: 0,
-            cur_line: 0,
-            cur_char: 0,
+        Self {
+            source: SourceStream::new(source),
+            lookahead_map: hashmap! {
+                b'=' => (TokenKind::EqualEqual, TokenKind::Equal),
+                b'!' => (TokenKind::BangEqual, TokenKind::Bang),
+                b'>' => (TokenKind::GreaterEqual, TokenKind::Greater),
+                b'<' => (TokenKind::LessEqual, TokenKind::Less)
+            },
         }
     }
 
+    /// Consumes the source code, yielding all extracted `Token`s.
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = vec![];
 
-        let lookahead_map = hashmap! {
-            b'=' => (TokenKind::EqualEqual, TokenKind::Equal),
-            b'!' => (TokenKind::BangEqual, TokenKind::Bang),
-            b'>' => (TokenKind::GreaterEqual, TokenKind::Greater),
-            b'<' => (TokenKind::LessEqual, TokenKind::Less)
-        };
-
-        while let Some(c) = self.current() {
+        while let Some(c) = self.source.peek() {
             match c {
-                b'0'...b'9' => tokens.push(Token {
-                    position: Position {
-                        line: self.cur_line,
-                        character: self.cur_char,
-                    },
-                    kind: TokenKind::Number(self.consume_number()),
-                }),
-                b'a'...b'z' | b'A'...b'Z' | b'_' => tokens.push(Token {
-                    position: Position {
-                        line: self.cur_line,
-                        character: self.cur_char,
-                    },
-                    kind: match self.consume_identifier() {
-                        "true" => TokenKind::Boolean(true),
-                        "false" => TokenKind::Boolean(false),
-                        "nil" => TokenKind::Nil,
-                        other => TokenKind::Identifier(other),
-                    },
-                }),
-                b'"' => {
-                    let line = self.cur_line;
-                    let ch = self.cur_char;
-                    self.index += 1;
-                    self.cur_char += 1;
-                    let string_contents = self.consume_string();
-                    if let Some(b'"') = self.current() {
-                        tokens.push(Token {
-                            kind: TokenKind::StringLiteral(string_contents),
-                            position: Position {
-                                line: line,
-                                character: ch,
-                            },
-                        });
-                        self.index += 1;
-                        self.cur_char += 1;
-                    } else {
-                        println!("Unclosed string literal");
-                        std::process::exit(1);
-                    }
-                }
-                c @ b'=' | c @ b'!' | c @ b'>' | c @ b'<' => match self.peek() {
-                    Some(b'=') => {
-                        tokens.push(Token {
-                            kind: lookahead_map[c].0,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        });
-                        self.index += 2;
-                        self.cur_char += 2;
-                    }
-                    Some(_) => {
-                        tokens.push(Token {
-                            kind: lookahead_map[c].1,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        });
-                        self.index += 1;
-                        self.cur_char += 1;
-                    }
-                    _ => {
-                        self.index += 1;
-                        self.cur_char += 1;
-                    }
-                },
+                b'0'...b'9' => tokens.push(self.handle_number()),
+                b'a'...b'z' | b'A'...b'Z' | b'_' => tokens.push(self.handle_identifier()),
+                b'"' => tokens.push(self.handle_string()),
+                b'=' | b'!' | b'>' | b'<' => tokens.push(self.handle_size_2_operator()),
                 size_1 => {
                     match size_1 {
-                        b' ' | b'\t' => { /* skip whitespace */ }
-                        b'\n' => {
-                            self.cur_line += 1;
-                            self.cur_char = 0;
-                        }
-                        b'+' => tokens.push(Token {
-                            kind: TokenKind::Plus,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
-                        b'-' => tokens.push(Token {
-                            kind: TokenKind::Minus,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
-                        b'*' => tokens.push(Token {
-                            kind: TokenKind::Star,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
-                        b'/' => tokens.push(Token {
-                            kind: TokenKind::Slash,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
-                        b'(' => tokens.push(Token {
-                            kind: TokenKind::OpenParen,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
-                        b')' => tokens.push(Token {
-                            kind: TokenKind::CloseParen,
-                            position: Position {
-                                line: self.cur_line,
-                                character: self.cur_char,
-                            },
-                        }),
+                        b' ' | b'\t' | b'\n' => { /* skip whitespace */ }
+                        b'+' => tokens.push(self.token_at_cur_pos(TokenKind::Plus)),
+                        b'-' => tokens.push(self.token_at_cur_pos(TokenKind::Minus)),
+                        b'*' => tokens.push(self.token_at_cur_pos(TokenKind::Star)),
+                        b'/' => tokens.push(self.token_at_cur_pos(TokenKind::Slash)),
+                        b'(' => tokens.push(self.token_at_cur_pos(TokenKind::OpenParen)),
+                        b')' => tokens.push(self.token_at_cur_pos(TokenKind::CloseParen)),
                         other => println!(
                             "Unrecognized byte: '{}' (0x{:x}), skipping...",
-                            *other as char, *other
+                            other as char, other
                         ),
                     }
-                    self.index += 1;
-                    self.cur_char += 1;
+                    self.source.next();
                 }
             }
         }
         tokens
     }
 
-    fn current(&self) -> Option<&'a u8> {
-        self.source.get(self.index)
-    }
+    /// Consumes the bytes that make a number literal, yielding a `Number` token.
+    fn handle_number(&mut self) -> Token {
+        let position = self.source.current_position();
+        let start = self.source.index;
 
-    fn peek(&self) -> Option<&'a u8> {
-        self.source.get(self.index + 1)
-    }
-
-    fn consume_string(&mut self) -> &'a str {
-        let start = self.index;
-        while let Some(c) = self.current() {
-            if *c == b'"' {
-                break;
-            }
-            self.index += 1;
-            self.cur_char += 1;
+        // read whole part
+        while let Some(b'0'...b'9') = self.source.peek() {
+            self.source.next();
         }
-        let end = self.index;
-        std::str::from_utf8(&self.source[start..end]).unwrap()
-    }
 
-    fn consume_identifier(&mut self) -> &'a str {
-        let start = self.index;
-        while let Some(c) = self.current() {
-            if !c.is_ascii_alphanumeric() && *c != b'_' {
-                break;
-            }
-            self.index += 1;
-            self.cur_char += 1;
-        }
-        let end = self.index;
-        std::str::from_utf8(&self.source[start..end]).unwrap()
-    }
-
-    fn consume_number(&mut self) -> f64 {
-        let start = self.index;
-        while let Some(b'0'...b'9') = self.current() {
-            self.index += 1;
-            self.cur_char += 1;
-        }
-        if let Some(b'.') = self.current() {
-            if let Some(b'0'...b'9') = self.peek() {
-                self.index += 2;
-                self.cur_char += 2;
-                while let Some(b'0'...b'9') = self.current() {
-                    self.index += 1;
-                    self.cur_char += 1;
+        // use second char lookahead to ensure . means float, not member access
+        if let Some(b'.') = self.source.peek() {
+            if let Some(b'0'...b'9') = self.source.peek_second() {
+                // ok, read fractional part
+                self.source.expect(b'.');
+                while let Some(b'0'...b'9') = self.source.peek() {
+                    self.source.next();
                 }
             }
         }
-        let end = self.index;
-        std::str::from_utf8(&self.source[start..end])
+
+        let end = self.source.index;
+        let number = std::str::from_utf8(&self.source.source[start..end])
             .unwrap()
-            .parse::<f64>()
-            .unwrap()
+            .parse()
+            .unwrap();
+
+        Token {
+            position,
+            kind: TokenKind::Number(number),
+        }
+    }
+
+    /// Consumes the bytes that make an identifier, yielding an appropriate token.
+    fn handle_identifier(&mut self) -> Token {
+        Token {
+            position: self.source.current_position(),
+            kind: match self
+                .source
+                .consume_while(|c| c.is_ascii_alphanumeric() || c == b'_')
+            {
+                "true" => TokenKind::Boolean(true),
+                "false" => TokenKind::Boolean(false),
+                "nil" => TokenKind::Nil,
+                other => TokenKind::Identifier(other.to_owned()),
+            },
+        }
+    }
+
+    /// Consumes the bytes that make a string literal, yielding a `StringLiteral` token.
+    /// Panics if no closing quote was found.
+    fn handle_string(&mut self) -> Token {
+        let position = self.source.current_position();
+
+        self.source.expect(b'"');
+        let string_contents = self.source.consume_while(|c| c != b'"');
+        if self.source.expect(b'"') {
+            Token {
+                kind: TokenKind::StringLiteral(string_contents.to_owned()),
+                position,
+            }
+        } else {
+            println!("Unclosed string literal");
+            std::process::exit(1);
+        }
+    }
+
+    /// Consumes a one-byte or a two-byte operator, yielding an appropriate token.
+    fn handle_size_2_operator(&mut self) -> Token {
+        let c = self.source.peek().unwrap();
+        match self.source.peek_second() {
+            Some(b'=') => {
+                let ret = self.token_at_cur_pos(self.lookahead_map[&c].clone().0);
+                self.source.next(); //TODO: adjust position code for this
+                self.source.next();
+                ret
+            }
+            _ => {
+                let ret = self.token_at_cur_pos(self.lookahead_map[&c].clone().1);
+                self.source.next();
+                ret
+            }
+        }
+    }
+
+    /// Constructs a token with `position` set to the current position in source.
+    fn token_at_cur_pos(&self, token_kind: TokenKind) -> Token {
+        Token {
+            kind: token_kind,
+            position: self.source.current_position(),
+        }
     }
 }
