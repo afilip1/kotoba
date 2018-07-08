@@ -43,6 +43,45 @@ pub struct Lexer<'a> {
     lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
 }
 
+impl Iterator for Lexer<'a> {
+    type Item = Token;
+
+    /// Consumes some source code, yielding an appropriate `Token`.
+    /// Returns `None` only when source stream is empty.
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(c) = self.source.peek() {
+            match c {
+                b'0'...b'9' => return Some(self.handle_number()),
+                b'a'...b'z' | b'A'...b'Z' | b'_' => return Some(self.handle_identifier()),
+                b'"' => return Some(self.handle_string()),
+                b'=' | b'!' | b'>' | b'<' => return Some(self.handle_size_2_operator()),
+                size_1 => {
+                    let position = self.source.current_position();
+                    self.source.next();
+                    let kind = match size_1 {
+                        b' ' | b'\t' | b'\n' => continue, // skip whitespace
+                        b'+' => TokenKind::Plus,
+                        b'-' => TokenKind::Minus,
+                        b'*' => TokenKind::Star,
+                        b'/' => TokenKind::Slash,
+                        b'(' => TokenKind::OpenParen,
+                        b')' => TokenKind::CloseParen,
+                        other => {
+                            println!(
+                                "Unrecognized byte '{}' (0x{:x}) at position {}, skipping...",
+                                other as char, other, position
+                            );
+                            continue;
+                        }
+                    };
+                    return Some(Token { kind, position });
+                }
+            }
+        }
+        None
+    }
+}
+
 impl Lexer<'a> {
     /// Initializes a new `Lexer` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
@@ -56,37 +95,6 @@ impl Lexer<'a> {
                 b'<' => (TokenKind::LessEqual, TokenKind::Less)
             },
         }
-    }
-
-    /// Consumes the source code, yielding all extracted `Token`s.
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        let mut tokens = vec![];
-
-        while let Some(c) = self.source.peek() {
-            match c {
-                b'0'...b'9' => tokens.push(self.handle_number()),
-                b'a'...b'z' | b'A'...b'Z' | b'_' => tokens.push(self.handle_identifier()),
-                b'"' => tokens.push(self.handle_string()),
-                b'=' | b'!' | b'>' | b'<' => tokens.push(self.handle_size_2_operator()),
-                size_1 => {
-                    match size_1 {
-                        b' ' | b'\t' | b'\n' => { /* skip whitespace */ }
-                        b'+' => tokens.push(self.token_at_cur_pos(TokenKind::Plus)),
-                        b'-' => tokens.push(self.token_at_cur_pos(TokenKind::Minus)),
-                        b'*' => tokens.push(self.token_at_cur_pos(TokenKind::Star)),
-                        b'/' => tokens.push(self.token_at_cur_pos(TokenKind::Slash)),
-                        b'(' => tokens.push(self.token_at_cur_pos(TokenKind::OpenParen)),
-                        b')' => tokens.push(self.token_at_cur_pos(TokenKind::CloseParen)),
-                        other => println!(
-                            "Unrecognized byte: '{}' (0x{:x}), skipping...",
-                            other as char, other
-                        ),
-                    }
-                    self.source.next();
-                }
-            }
-        }
-        tokens
     }
 
     /// Consumes the bytes that make a number literal, yielding a `Number` token.
