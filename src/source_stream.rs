@@ -1,7 +1,15 @@
+use std::fmt::{Display, Formatter, Result};
+
 #[derive(Debug)]
 pub struct Position {
     pub line: usize,
     pub character: usize,
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}:{}", self.line, self.character)
+    }
 }
 
 pub struct SourceStream<'a> {
@@ -18,8 +26,8 @@ impl SourceStream<'a> {
         Self {
             source: source.as_bytes(),
             index: 0,
-            cur_line: 0,
-            cur_char: 0,
+            cur_line: 1,
+            cur_char: 1,
         }
     }
 
@@ -43,7 +51,7 @@ impl SourceStream<'a> {
             match c {
                 it @ b'\n' => {
                     self.cur_line += 1;
-                    self.cur_char = 0;
+                    self.cur_char = 1;
                     *it
                 }
                 it @ _ => {
