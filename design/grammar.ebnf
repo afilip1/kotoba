@@ -9,6 +9,9 @@ string = '"' character* '"';
 
 nil = "nil";
 
+alpha_char = ["A"-"Z" "a"-"z"];
+identifier = (alpha_char | "_") (alpha_char | digit | "_")*;
+
 expression = equality;
 equality = comparison (("==" | "!=") comparison)*;
 comparison = addition ((">" | ">=" | "<" | "<=") addition)*;
@@ -16,6 +19,3 @@ addition = multi8n (("+" | "-") multi8n)*;
 multi8n = unary (("*" | "/") unary)*;
 unary = ("!" | "-") unary | primary;
 primary = number | boolean | string | nil | "(" expression ")";
-
-alpha_char = ["A"-"Z" "a"-"z"];
-identifier = (alpha_char | "_") (alpha_char | digit | "_")*;

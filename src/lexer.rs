@@ -9,7 +9,7 @@ macro_rules! hashmap {
     });
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub position: Position,
@@ -38,12 +38,12 @@ pub enum TokenKind {
     CloseParen,
 }
 
-pub struct Lexer<'a> {
-    source: SourceStream<'a>,
+pub struct Lexer<'source> {
+    source: SourceStream<'source>,
     lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
 }
 
-impl Iterator for Lexer<'a> {
+impl Iterator for Lexer<'source> {
     type Item = Token;
 
     /// Consumes some source code, yielding an appropriate `Token`.
@@ -59,7 +59,7 @@ impl Iterator for Lexer<'a> {
                     let position = self.source.current_position();
                     self.source.next();
                     let kind = match size_1 {
-                        b' ' | b'\t' | b'\n' => continue, // skip whitespace
+                        b' ' | b'\t' | b'\r' | b'\n' => continue, // skip whitespace
                         b'+' => TokenKind::Plus,
                         b'-' => TokenKind::Minus,
                         b'*' => TokenKind::Star,
@@ -82,10 +82,10 @@ impl Iterator for Lexer<'a> {
     }
 }
 
-impl Lexer<'a> {
+impl Lexer<'source> {
     /// Initializes a new `Lexer` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'source str) -> Self {
         Self {
             source: SourceStream::new(source),
             lookahead_map: hashmap! {

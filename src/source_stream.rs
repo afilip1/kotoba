@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Position {
     pub line: usize,
     pub character: usize,
@@ -12,17 +12,17 @@ impl Display for Position {
     }
 }
 
-pub struct SourceStream<'a> {
-    pub source: &'a [u8],
+pub struct SourceStream<'source> {
+    pub source: &'source [u8],
     pub index: usize,
     cur_line: usize,
     cur_char: usize,
 }
 
-impl SourceStream<'a> {
+impl SourceStream<'source> {
     /// Initializes a new `SourceStream` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'source str) -> Self {
         Self {
             source: source.as_bytes(),
             index: 0,
@@ -77,7 +77,7 @@ impl SourceStream<'a> {
     /// Consumes the bytes in the stream while `predicate` is true,
     /// and returns them all as `&str`. Does not consume the first byte that
     /// fails the `predicate` check (cf. `Iterator::take_while()`).
-    pub fn consume_while(&mut self, predicate: impl Fn(u8) -> bool) -> &'a str {
+    pub fn consume_while(&mut self, predicate: impl Fn(u8) -> bool) -> &'source str {
         let start = self.index;
         while let Some(c) = self.peek() {
             if !predicate(c) {
