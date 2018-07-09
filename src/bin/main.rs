@@ -1,12 +1,5 @@
-#![feature(rust_2018_preview, box_patterns)]
-
-mod eval;
-mod lexer;
-mod parser;
-mod source_stream;
-
-use crate::eval::*;
-use crate::parser::*;
+use kotoba::eval::*;
+use kotoba::parser::*;
 use std::io::prelude::*;
 
 fn main() {
