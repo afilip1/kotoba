@@ -1,14 +1,23 @@
-#![feature(rust_2018_preview)]
+#![feature(rust_2018_preview, box_patterns)]
 
+mod eval;
 mod lexer;
 mod parser;
 mod source_stream;
-use crate::lexer::*;
+
+use crate::eval::*;
+use crate::parser::*;
+use std::io::prelude::*;
 
 fn main() {
-    // let source = "123.434 true false nil \"test \nstring\" + - * / == != >= <= > < ! ()";
-    let source = r#"(1 + 345.67) / some_var >= function("some string")"#;
-    let tokens = Lexer::new(source).collect::<Vec<_>>();
+    loop {
+        print!(">>> ");
+        std::io::stdout().flush().unwrap();
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        let ast = Parser::new(&input).parse();
 
-    println!("{:#?}", tokens);
+        println!("Parsed AST:\n{:#?}\n", ast);
+        println!("Expression evaluates to:\n{:?}", eval(&ast));
+    }
 }
