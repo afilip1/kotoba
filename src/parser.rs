@@ -7,11 +7,11 @@ pub enum AstNode {
     StringLiteral(String),
     Grouping(Box<AstNode>),
     UnaryExpr {
-        operator: UnaryOp,
+        operator: Op,
         operand: Box<AstNode>,
     },
     BinaryExpr {
-        operator: BinaryOp,
+        operator: Op,
         lhs: Box<AstNode>,
         rhs: Box<AstNode>,
     },
@@ -20,17 +20,18 @@ pub enum AstNode {
 }
 
 #[derive(Debug)]
-pub enum UnaryOp {
-    Not,
+pub enum Op {
+    Bang,
+    Star,
+    Slash,
+    Plus,
     Minus,
-}
-
-#[derive(Debug)]
-pub enum BinaryOp {
-    Multiply,
-    Divide,
-    Add,
-    Subtract,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    EqualEqual,
+    BangEqual,
 }
 
 pub struct Parser<'source> {
@@ -49,104 +50,176 @@ impl Parser<'source> {
     }
 
     fn parse_expression(&mut self) -> AstNode {
-        self.parse_addition()
+        self.parse_equality()
+    }
+
+    fn parse_equality(&mut self) -> AstNode {
+        let lhs = self.parse_comparison();
+        if let Some(t) = self.lexer.peek().cloned() {
+            match t.kind {
+                TokenKind::EqualEqual => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::EqualEqual,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_comparison()),
+                    }
+                }
+                TokenKind::BangEqual => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::BangEqual,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_comparison()),
+                    }
+                }
+                _ => lhs,
+            }
+        } else {
+            lhs
+        }
+    }
+
+    fn parse_comparison(&mut self) -> AstNode {
+        let lhs = self.parse_addition();
+        if let Some(t) = self.lexer.peek().cloned() {
+            match t.kind {
+                TokenKind::Greater => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::Greater,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_addition()),
+                    }
+                }
+                TokenKind::GreaterEqual => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::GreaterEqual,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_addition()),
+                    }
+                }
+                TokenKind::Less => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::Less,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_addition()),
+                    }
+                }
+                TokenKind::LessEqual => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::LessEqual,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_addition()),
+                    }
+                }
+                _ => lhs,
+            }
+        } else {
+            lhs
+        }
     }
 
     fn parse_addition(&mut self) -> AstNode {
-        let lhs = self.parse_multiplication();
-        if let Some(Token { kind, .. }) = self.lexer.peek().cloned() {
-            return match kind {
+        let mut acc = self.parse_multiplication();
+        while let Some(t) = self.lexer.peek().cloned() {
+            acc = match t.kind {
                 TokenKind::Plus => {
                     self.lexer.next();
                     AstNode::BinaryExpr {
-                        operator: BinaryOp::Add,
-                        lhs: Box::new(lhs),
+                        operator: Op::Plus,
+                        lhs: Box::new(acc),
                         rhs: Box::new(self.parse_multiplication()),
                     }
                 }
                 TokenKind::Minus => {
                     self.lexer.next();
                     AstNode::BinaryExpr {
-                        operator: BinaryOp::Subtract,
-                        lhs: Box::new(lhs),
+                        operator: Op::Minus,
+                        lhs: Box::new(acc),
                         rhs: Box::new(self.parse_multiplication()),
                     }
                 }
-                _ => lhs,
+                _ => break,
             };
         }
-        lhs
+        acc
     }
 
     fn parse_multiplication(&mut self) -> AstNode {
-        let lhs = self.parse_unary();
-        if let Some(Token { kind, .. }) = self.lexer.peek().cloned() {
-            return match kind {
+        let mut acc = self.parse_unary();
+        while let Some(t) = self.lexer.peek().cloned() {
+            acc = match t.kind {
                 TokenKind::Star => {
                     self.lexer.next();
                     AstNode::BinaryExpr {
-                        operator: BinaryOp::Multiply,
-                        lhs: Box::new(lhs),
+                        operator: Op::Star,
+                        lhs: Box::new(acc),
                         rhs: Box::new(self.parse_unary()),
                     }
                 }
                 TokenKind::Slash => {
                     self.lexer.next();
                     AstNode::BinaryExpr {
-                        operator: BinaryOp::Divide,
-                        lhs: Box::new(lhs),
+                        operator: Op::Slash,
+                        lhs: Box::new(acc),
                         rhs: Box::new(self.parse_unary()),
                     }
                 }
-                _ => lhs,
+                _ => break,
             };
         }
-        lhs
+        acc
     }
 
     fn parse_unary(&mut self) -> AstNode {
-        if let Some(Token { kind, .. }) = self.lexer.peek().cloned() {
-            return match kind {
+        if let Some(t) = self.lexer.peek().cloned() {
+            match t.kind {
                 TokenKind::Bang => {
                     self.lexer.next();
                     AstNode::UnaryExpr {
-                        operator: UnaryOp::Not,
+                        operator: Op::Bang,
                         operand: Box::new(self.parse_unary()),
                     }
                 }
                 TokenKind::Minus => {
                     self.lexer.next();
                     AstNode::UnaryExpr {
-                        operator: UnaryOp::Minus,
+                        operator: Op::Minus,
                         operand: Box::new(self.parse_unary()),
                     }
                 }
                 _ => self.parse_primary(),
-            };
+            }
+        } else {
+            AstNode::Empty
         }
-        self.parse_primary()
     }
 
     fn parse_primary(&mut self) -> AstNode {
-        if let Some(Token { kind, .. }) = self.lexer.next() {
-            return match kind {
+        if let Some(t) = self.lexer.next() {
+            match t.kind {
                 TokenKind::Number(n) => AstNode::Number(n),
                 TokenKind::Boolean(b) => AstNode::Boolean(b),
                 TokenKind::StringLiteral(s) => AstNode::StringLiteral(s),
                 TokenKind::Nil => AstNode::Nil,
                 TokenKind::OpenParen => {
-                    let ret = self.parse_expression();
+                    let expr = self.parse_expression();
                     match self.lexer.next() {
                         Some(Token {
                             kind: TokenKind::CloseParen,
                             ..
-                        }) => AstNode::Grouping(Box::new(ret)),
-                        _ => panic!("Unclosed paren grouping"),
+                        }) => AstNode::Grouping(Box::new(expr)),
+                        _ => panic!("Unclosed paren grouping at {}", t.position),
                     }
                 }
-                _ => AstNode::Empty,
-            };
+                _ => panic!("Unexpected token {:?} at {}", t.kind, t.position),
+            }
+        } else {
+            AstNode::Empty
         }
-        AstNode::Empty
     }
 }
