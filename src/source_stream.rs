@@ -34,31 +34,27 @@ impl SourceStream<'source> {
     /// Returns the next byte in the stream without consuming it,
     /// or `None` if the stream is empty.
     pub fn peek(&self) -> Option<u8> {
-        self.source.get(self.index).map(|c| *c)
+        self.source.get(self.index).cloned()
     }
 
     /// Returns the second next byte in the stream without consuming it,
     /// or `None` if the stream has less than two bytes left.
     pub fn peek_second(&self) -> Option<u8> {
-        self.source.get(self.index + 1).map(|c| *c)
+        self.source.get(self.index + 1).cloned()
     }
 
     /// Returns the next byte in the stream, consuming it,
     /// or `None` if the stream is empty.
     pub fn next(&mut self) -> Option<u8> {
-        self.source.get(self.index).map(|c| {
+        self.source.get(self.index).map(|&c| {
             self.index += 1;
-            match c {
-                it @ b'\n' => {
-                    self.cur_line += 1;
-                    self.cur_char = 1;
-                    *it
-                }
-                it @ _ => {
-                    self.cur_char += 1;
-                    *it
-                }
+            if c == b'\n' {
+                self.cur_line += 1;
+                self.cur_char = 1;
+            } else {
+                self.cur_char += 1;
             }
+            c
         })
     }
 
