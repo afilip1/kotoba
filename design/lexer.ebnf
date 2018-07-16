@@ -1,0 +1,13 @@
+digit = ["0"-"9"];
+integer = digit+;
+float = integer "." integer;
+number = integer | float;
+
+boolean = "true" | "false";
+
+string = '"' character* '"';
+
+nil = "nil";
+
+alpha_char = ["A"-"Z" "a"-"z"];
+identifier = (alpha_char | "_") (alpha_char | digit | "_")*;

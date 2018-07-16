@@ -1,0 +1,7 @@
+expression = equality;
+equality = comparison ("==" | "!=") comparison;
+comparison = addition (">" | ">=" | "<" | "<=") addition;
+addition = multi8n (("+" | "-") multi8n)*;
+multi8n = unary (("*" | "/") unary)*;
+unary = ("!" | "-") unary | primary;
+primary = number | boolean | string | nil | "(" expression ")";
