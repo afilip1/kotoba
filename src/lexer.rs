@@ -38,6 +38,7 @@ pub enum TokenKind {
     CloseParen,
     And,
     Or,
+    Semicolon,
 }
 
 pub struct Lexer<'source> {
@@ -68,6 +69,7 @@ impl Iterator for Lexer<'source> {
                         b'/' => TokenKind::Slash,
                         b'(' => TokenKind::OpenParen,
                         b')' => TokenKind::CloseParen,
+                        b';' => TokenKind::Semicolon,
                         other => {
                             println!(
                                 "Unrecognized byte '{}' (0x{:x}) at position {}, skipping...",

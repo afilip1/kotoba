@@ -1,6 +1,6 @@
 use crate::lexer::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AstNode {
     Number(f64),
     Boolean(bool),
@@ -15,11 +15,12 @@ pub enum AstNode {
         lhs: Box<AstNode>,
         rhs: Box<AstNode>,
     },
+    Program(Vec<AstNode>),
     Nil,
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Op {
     Bang,
     Star,
@@ -48,7 +49,24 @@ impl Parser<'source> {
     }
 
     pub fn parse(&mut self) -> AstNode {
-        self.parse_expression()
+        self.parse_program()
+    }
+
+    fn parse_program(&mut self) -> AstNode {
+        let mut exprs = vec![self.parse_expression()];
+        while let Some(t) = self.lexer.next() {
+            match t.kind {
+                TokenKind::Semicolon => {
+                    let expr = self.parse_expression();
+                    if expr == AstNode::Empty {
+                        break;
+                    }
+                    exprs.push(expr);
+                }
+                _ => panic!("Unexpected token {:?} at {}", t.kind, t.position),
+            }
+        }
+        AstNode::Program(exprs)
     }
 
     fn parse_expression(&mut self) -> AstNode {

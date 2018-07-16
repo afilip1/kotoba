@@ -27,6 +27,7 @@ impl Display for Type {
 pub fn eval(ast: &AstNode) -> Type {
     match ast {
         AstNode::Nil => Type::Nil,
+        AstNode::Program(exprs) => exprs.iter().fold(Type::Nil, |_, e| eval(e)),
         AstNode::Grouping(expr) => eval(expr),
         AstNode::Number(n) => Type::Number(*n),
         AstNode::Boolean(b) => Type::Boolean(*b),
