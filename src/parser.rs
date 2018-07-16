@@ -6,6 +6,7 @@ pub enum AstNode {
     Boolean(bool),
     StringLiteral(String),
     Grouping(Box<AstNode>),
+    Identifier(String),
     UnaryExpr {
         operator: Op,
         operand: Box<AstNode>,
@@ -16,6 +17,10 @@ pub enum AstNode {
         rhs: Box<AstNode>,
     },
     Program(Vec<AstNode>),
+    Assignment {
+        identifier: String,
+        operand: Box<AstNode>
+    },
     Nil,
     Empty,
 }
@@ -70,7 +75,27 @@ impl Parser<'source> {
     }
 
     fn parse_expression(&mut self) -> AstNode {
-        self.parse_disjunction()
+        self.parse_assignment()
+    }
+
+    fn parse_assignment(&mut self) -> AstNode {
+        if let Some(t @ Token { kind: TokenKind::Let, .. }) = self.lexer.peek().cloned() {
+            self.lexer.next();
+            if let Some(Token { kind:TokenKind::Identifier(id), .. }) = self.lexer.next() {
+                if let Some(Token  { kind:TokenKind::Equal,.. }) = self.lexer.next() {
+                    AstNode::Assignment {
+                        identifier: id,
+                        operand: Box::new(self.parse_expression())
+                    }
+                } else {
+                    panic!("Missing = in assignment at {}", t.position)
+                }
+            } else {
+                panic!("Missing variable name in assignment at {}", t.position)
+            }
+        } else {
+            self.parse_disjunction()
+        }
     }
 
     fn parse_disjunction(&mut self) -> AstNode {
@@ -263,6 +288,7 @@ impl Parser<'source> {
                 TokenKind::Number(n) => AstNode::Number(n),
                 TokenKind::Boolean(b) => AstNode::Boolean(b),
                 TokenKind::StringLiteral(s) => AstNode::StringLiteral(s),
+                TokenKind::Identifier(id) => AstNode::Identifier(id),
                 TokenKind::Nil => AstNode::Nil,
                 TokenKind::OpenParen => {
                     let expr = self.parse_expression();

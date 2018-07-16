@@ -1,19 +1,18 @@
-use kotoba::eval::*;
-use kotoba::parser::*;
-use std::io::prelude::*;
+use kotoba::{parser::Parser, eval::Environment};
+use std::io::{stdout, stdin, Write};
 
 fn main() {
+    let mut env = Environment::new();
+
     loop {
-        print!(">>> ");
-        std::io::stdout().flush().unwrap();
+        print!("::<> ");
+        stdout().flush().unwrap();
 
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        stdin().read_line(&mut input).unwrap();
 
         let ast = Parser::new(&input).parse();
 
-        // println!("Parsed AST:\n{:#?}\n", ast);
-        // println!("Expression evaluates to:\n{:?}", eval(&ast));
-        println!("{}", eval(&ast));
+        println!("{}", env.eval(&ast));
     }
 }
