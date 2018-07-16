@@ -1,49 +1,70 @@
 use crate::parser::*;
+use std::fmt::{Display, Formatter, Result};
 
-#[derive(Debug)]
-pub enum KotobaType {
+#[derive(Debug, PartialEq)]
+pub enum Type {
     Number(f64),
     Boolean(bool),
     String(String),
     Nil,
 }
 
-pub fn eval(ast: &AstNode) -> KotobaType {
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Type::Number(n) => n.to_string(),
+                Type::Boolean(b) => b.to_string(),
+                Type::String(s) => format!("\"{}\"", s.clone()),
+                Type::Nil => "nil".to_string(),
+            }
+        )
+    }
+}
+
+pub fn eval(ast: &AstNode) -> Type {
     match ast {
-        AstNode::Number(n) => KotobaType::Number(*n),
-        AstNode::Boolean(b) => KotobaType::Boolean(*b),
-        AstNode::StringLiteral(s) => KotobaType::String(s.clone()),
-        AstNode::Nil => KotobaType::Nil,
+        AstNode::Nil => Type::Nil,
         AstNode::Grouping(expr) => eval(expr),
-        AstNode::UnaryExpr {
-            operator: UnaryOp::Minus,
-            operand,
-        } => {
-            if let KotobaType::Number(n) = eval(operand) {
-                KotobaType::Number(-n)
-            } else {
-                println!("Unary operator can only be applied to numeric expressions.");
+        AstNode::Number(n) => Type::Number(*n),
+        AstNode::Boolean(b) => Type::Boolean(*b),
+        AstNode::StringLiteral(s) => Type::String(s.clone()),
+        AstNode::UnaryExpr { operator, operand } => match (operator, eval(operand)) {
+            (Op::Minus, Type::Number(n)) => Type::Number(-n),
+            (Op::Bang, Type::Boolean(b)) => Type::Boolean(!b),
+            _ => {
+                println!(
+                    "Unary operator {:?} can not be applied to type: {:?}",
+                    operator, operand
+                );
                 std::process::exit(2);
             }
-        }
-        AstNode::BinaryExpr { operator, lhs, rhs } => {
-            let (lhs, rhs) = (eval(lhs), eval(rhs));
-            if let (KotobaType::Number(lhs), KotobaType::Number(rhs)) = (&lhs, &rhs) {
-                match operator {
-                    BinaryOp::Add => KotobaType::Number(lhs + rhs),
-                    BinaryOp::Subtract => KotobaType::Number(lhs - rhs),
-                    BinaryOp::Multiply => KotobaType::Number(lhs * rhs),
-                    BinaryOp::Divide => KotobaType::Number(lhs / rhs),
-                }
-            } else if let (BinaryOp::Add, KotobaType::String(lhs), KotobaType::String(rhs)) =
-                (operator, lhs, rhs)
-            {
-                KotobaType::String(lhs + &rhs)
-            } else {
-                println!("Binary operators can only be applied to numeric expressions.");
+        },
+        AstNode::BinaryExpr { operator, lhs, rhs } => match (operator, eval(lhs), eval(rhs)) {
+            (Op::EqualEqual, lhs, rhs) => Type::Boolean(lhs == rhs),
+            (Op::BangEqual, lhs, rhs) => Type::Boolean(lhs != rhs),
+            (operator, Type::Number(lhs), Type::Number(rhs)) => match operator {
+                Op::Plus => Type::Number(lhs + rhs),
+                Op::Minus => Type::Number(lhs - rhs),
+                Op::Star => Type::Number(lhs * rhs),
+                Op::Slash => Type::Number(lhs / rhs),
+                Op::Greater => Type::Boolean(lhs > rhs),
+                Op::GreaterEqual => Type::Boolean(lhs >= rhs),
+                Op::Less => Type::Boolean(lhs < rhs),
+                Op::LessEqual => Type::Boolean(lhs <= rhs),
+                _ => unreachable!(),
+            },
+            (Op::Plus, Type::String(lhs), Type::String(rhs)) => Type::String(lhs + &rhs),
+            _ => {
+                println!(
+                    "Operator {:?} can not be applied to types: {:?}, {:?}",
+                    operator, lhs, rhs
+                );
                 std::process::exit(3);
             }
-        }
-        _ => KotobaType::Nil,
+        },
+        _ => Type::Nil, //temporary
     }
 }
