@@ -36,6 +36,8 @@ pub enum TokenKind {
     Bang,
     OpenParen,
     CloseParen,
+    And,
+    Or,
 }
 
 pub struct Lexer<'source> {
@@ -141,6 +143,8 @@ impl Lexer<'source> {
                 "true" => TokenKind::Boolean(true),
                 "false" => TokenKind::Boolean(false),
                 "nil" => TokenKind::Nil,
+                "and" => TokenKind::And,
+                "or" => TokenKind::Or,
                 other => TokenKind::Identifier(other.to_owned()),
             },
         }

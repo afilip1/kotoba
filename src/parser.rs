@@ -32,6 +32,8 @@ pub enum Op {
     LessEqual,
     EqualEqual,
     BangEqual,
+    And,
+    Or,
 }
 
 pub struct Parser<'source> {
@@ -50,7 +52,45 @@ impl Parser<'source> {
     }
 
     fn parse_expression(&mut self) -> AstNode {
-        self.parse_equality()
+        self.parse_disjunction()
+    }
+
+    fn parse_disjunction(&mut self) -> AstNode {
+        let lhs = self.parse_conjunction();
+        if let Some(t) = self.lexer.peek().cloned() {
+            match t.kind {
+                TokenKind::Or => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::Or,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_conjunction()),
+                    }
+                }
+                _ => lhs,
+            }
+        } else {
+            lhs
+        }
+    }
+
+    fn parse_conjunction(&mut self) -> AstNode {
+        let lhs = self.parse_equality();
+        if let Some(t) = self.lexer.peek().cloned() {
+            match t.kind {
+                TokenKind::And => {
+                    self.lexer.next();
+                    AstNode::BinaryExpr {
+                        operator: Op::And,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(self.parse_equality()),
+                    }
+                }
+                _ => lhs,
+            }
+        } else {
+            lhs
+        }
     }
 
     fn parse_equality(&mut self) -> AstNode {

@@ -45,16 +45,24 @@ pub fn eval(ast: &AstNode) -> Type {
         AstNode::BinaryExpr { operator, lhs, rhs } => match (operator, eval(lhs), eval(rhs)) {
             (Op::EqualEqual, lhs, rhs) => Type::Boolean(lhs == rhs),
             (Op::BangEqual, lhs, rhs) => Type::Boolean(lhs != rhs),
-            (operator, Type::Number(lhs), Type::Number(rhs)) => match operator {
-                Op::Plus => Type::Number(lhs + rhs),
-                Op::Minus => Type::Number(lhs - rhs),
-                Op::Star => Type::Number(lhs * rhs),
-                Op::Slash => Type::Number(lhs / rhs),
-                Op::Greater => Type::Boolean(lhs > rhs),
-                Op::GreaterEqual => Type::Boolean(lhs >= rhs),
-                Op::Less => Type::Boolean(lhs < rhs),
-                Op::LessEqual => Type::Boolean(lhs <= rhs),
-                _ => unreachable!(),
+            (Op::And, Type::Boolean(lhs), Type::Boolean(rhs)) => Type::Boolean(lhs && rhs),
+            (Op::Or, Type::Boolean(lhs), Type::Boolean(rhs)) => Type::Boolean(lhs || rhs),
+            (operator, Type::Number(lhsn), Type::Number(rhsn)) => match operator {
+                Op::Plus => Type::Number(lhsn + rhsn),
+                Op::Minus => Type::Number(lhsn - rhsn),
+                Op::Star => Type::Number(lhsn * rhsn),
+                Op::Slash => Type::Number(lhsn / rhsn),
+                Op::Greater => Type::Boolean(lhsn > rhsn),
+                Op::GreaterEqual => Type::Boolean(lhsn >= rhsn),
+                Op::Less => Type::Boolean(lhsn < rhsn),
+                Op::LessEqual => Type::Boolean(lhsn <= rhsn),
+                _ => {
+                    println!(
+                        "Operator {:?} can not be applied to types: {:?}, {:?}",
+                        operator, lhs, rhs
+                    );
+                    std::process::exit(3);
+                },
             },
             (Op::Plus, Type::String(lhs), Type::String(rhs)) => Type::String(lhs + &rhs),
             _ => {
