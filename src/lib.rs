@@ -1,6 +1,6 @@
 #![feature(rust_2018_preview)]
 
-mod source_stream;
+pub mod eval;
 mod lexer;
 pub mod parser;
-pub mod eval;
+mod source_stream;

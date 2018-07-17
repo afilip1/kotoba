@@ -15,7 +15,7 @@ pub struct Token {
     pub position: Position,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Number(f64),
     Boolean(bool),
@@ -45,7 +45,7 @@ pub enum TokenKind {
 pub struct Lexer<'source> {
     source: SourceStream<'source>,
     lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
-    peek_cache: Option<Token>
+    peek_cache: Option<Token>,
 }
 
 impl Iterator for Lexer<'source> {
@@ -109,18 +109,46 @@ impl Lexer<'source> {
     }
 
     /// Peeks next token in the stream without consuming it.
-    /// 
+    ///
     /// Peeking a certain token the first time advances the iterator, all subsequent calls
     /// to `peek()` and first call to `next()` will return the cached value instead.
     pub fn peek(&mut self) -> Option<Token> {
         if self.peek_cache.is_some() {
-            return self.peek_cache.clone()
+            return self.peek_cache.clone();
         }
 
         self.next().map(|t| {
             self.peek_cache = Some(t.clone());
             t
         })
+    }
+
+    pub fn expect(&mut self, expected: &TokenKind) -> Option<Token> {
+        if let Some(t) = self.peek() {
+            if t.kind == *expected {
+                return self.next();
+            }
+        }
+        None
+    }
+
+    pub fn expect_any(&mut self, expected: &[TokenKind]) -> Option<Token> {
+        if let Some(t) = self.peek() {
+            if expected.iter().any(|e| &t.kind == e) {
+                return self.next();
+            }
+        }
+        None
+    }
+
+    pub fn expect_identifier(&mut self) -> Option<String> {
+        if let Some(t) = self.peek() {
+            if let TokenKind::Identifier(id) = t.kind {
+                self.next();
+                return Some(id);
+            }
+        }
+        None
     }
 
     /// Consumes the bytes that make a number literal, yielding a `Number` token.

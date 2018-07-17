@@ -1,5 +1,5 @@
-use kotoba::{parser::Parser, eval::Environment};
-use std::io::{stdout, stdin, Write};
+use kotoba::{eval::Environment, parser::Parser};
+use std::io::{stdin, stdout, Write};
 
 fn main() {
     let mut env = Environment::new();
