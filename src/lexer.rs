@@ -45,6 +45,7 @@ pub enum TokenKind {
 pub struct Lexer<'source> {
     source: SourceStream<'source>,
     lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
+    peek_cache: Option<Token>
 }
 
 impl Iterator for Lexer<'source> {
@@ -53,6 +54,10 @@ impl Iterator for Lexer<'source> {
     /// Consumes some source code, yielding an appropriate `Token`.
     /// Returns `None` only when source stream is empty.
     fn next(&mut self) -> Option<Self::Item> {
+        if self.peek_cache.is_some() {
+            return self.peek_cache.take();
+        }
+
         while let Some(c) = self.source.peek() {
             match c {
                 b'0'...b'9' => return Some(self.handle_number()),
@@ -99,7 +104,23 @@ impl Lexer<'source> {
                 b'>' => (TokenKind::GreaterEqual, TokenKind::Greater),
                 b'<' => (TokenKind::LessEqual, TokenKind::Less)
             },
+            peek_cache: None,
         }
+    }
+
+    /// Peeks next token in the stream without consuming it.
+    /// 
+    /// Peeking a certain token the first time advances the iterator, all subsequent calls
+    /// to `peek()` and first call to `next()` will return the cached value instead.
+    pub fn peek(&mut self) -> Option<Token> {
+        if self.peek_cache.is_some() {
+            return self.peek_cache.clone()
+        }
+
+        self.next().map(|t| {
+            self.peek_cache = Some(t.clone());
+            t
+        })
     }
 
     /// Consumes the bytes that make a number literal, yielding a `Number` token.

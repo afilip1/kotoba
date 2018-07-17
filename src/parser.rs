@@ -43,13 +43,13 @@ pub enum Op {
 }
 
 pub struct Parser<'source> {
-    lexer: std::iter::Peekable<Lexer<'source>>,
+    lexer: Lexer<'source>,
 }
 
 impl Parser<'source> {
     pub fn new(source: &'source str) -> Self {
         Parser {
-            lexer: Lexer::new(source).peekable(),
+            lexer: Lexer::new(source)
         }
     }
 
@@ -79,7 +79,7 @@ impl Parser<'source> {
     }
 
     fn parse_assignment(&mut self) -> AstNode {
-        if let Some(t @ Token { kind: TokenKind::Let, .. }) = self.lexer.peek().cloned() {
+        if let Some(t @ Token { kind: TokenKind::Let, .. }) = self.lexer.peek() {
             self.lexer.next();
             if let Some(Token { kind:TokenKind::Identifier(id), .. }) = self.lexer.next() {
                 if let Some(Token  { kind:TokenKind::Equal,.. }) = self.lexer.next() {
@@ -100,7 +100,7 @@ impl Parser<'source> {
 
     fn parse_disjunction(&mut self) -> AstNode {
         let lhs = self.parse_conjunction();
-        if let Some(t) = self.lexer.peek().cloned() {
+        if let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::Or => {
                     self.lexer.next();
@@ -119,7 +119,7 @@ impl Parser<'source> {
 
     fn parse_conjunction(&mut self) -> AstNode {
         let lhs = self.parse_equality();
-        if let Some(t) = self.lexer.peek().cloned() {
+        if let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::And => {
                     self.lexer.next();
@@ -138,7 +138,7 @@ impl Parser<'source> {
 
     fn parse_equality(&mut self) -> AstNode {
         let lhs = self.parse_comparison();
-        if let Some(t) = self.lexer.peek().cloned() {
+        if let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::EqualEqual => {
                     self.lexer.next();
@@ -165,7 +165,7 @@ impl Parser<'source> {
 
     fn parse_comparison(&mut self) -> AstNode {
         let lhs = self.parse_addition();
-        if let Some(t) = self.lexer.peek().cloned() {
+        if let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::Greater => {
                     self.lexer.next();
@@ -208,7 +208,7 @@ impl Parser<'source> {
 
     fn parse_addition(&mut self) -> AstNode {
         let mut acc = self.parse_multiplication();
-        while let Some(t) = self.lexer.peek().cloned() {
+        while let Some(t) = self.lexer.peek() {
             acc = match t.kind {
                 TokenKind::Plus => {
                     self.lexer.next();
@@ -234,7 +234,7 @@ impl Parser<'source> {
 
     fn parse_multiplication(&mut self) -> AstNode {
         let mut acc = self.parse_unary();
-        while let Some(t) = self.lexer.peek().cloned() {
+        while let Some(t) = self.lexer.peek() {
             acc = match t.kind {
                 TokenKind::Star => {
                     self.lexer.next();
@@ -259,7 +259,7 @@ impl Parser<'source> {
     }
 
     fn parse_unary(&mut self) -> AstNode {
-        if let Some(t) = self.lexer.peek().cloned() {
+        if let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::Bang => {
                     self.lexer.next();
