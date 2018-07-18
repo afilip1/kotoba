@@ -1,5 +1,16 @@
 use crate::lexer::*;
 
+type Result = std::result::Result<AstNode, Error>;
+
+#[derive(Debug)]
+enum Error {
+    UnclosedGrouping(Token),
+    UnexpectedToken(Token),
+    UnexpectedEof,
+    AssignmentMissingEqual(Token),
+    AssignmentMissingIdentifier(Token),
+}
+
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
     Number(f64),
@@ -22,7 +33,6 @@ pub enum AstNode {
         operand: Box<AstNode>,
     },
     Nil,
-    Empty,
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,98 +85,104 @@ impl Parser<'source> {
     }
 
     pub fn parse(&mut self) -> AstNode {
-        self.parse_program()
+        match self.parse_program() {
+            Ok(p) => p,
+            err => {
+                println!("syntax error: {:?}", err);
+                AstNode::Nil
+            }
+        }
     }
 
-    fn parse_program(&mut self) -> AstNode {
-        let mut exprs = vec![self.parse_expression()];
+    fn parse_program(&mut self) -> Result {
+        let mut exprs = vec![];
+
+        if self.lexer.peek().is_some() {
+            exprs.push(self.parse_expression()?);
+        }
 
         while let Some(t) = self.lexer.next() {
             match t.kind {
                 TokenKind::Semicolon => {
-                    let expr = self.parse_expression();
-                    if expr == AstNode::Empty {
-                        break;
-                    }
-                    exprs.push(expr);
+                    exprs.push(self.parse_expression()?);
                 }
-                _ => panic!("Unexpected token {:?} at {}", t.kind, t.position),
+                _ => return Err(Error::UnexpectedToken(t))
             }
         }
 
-        AstNode::Program(exprs)
+        Ok(AstNode::Program(exprs))
     }
 
-    fn parse_expression(&mut self) -> AstNode {
+    fn parse_expression(&mut self) -> Result {
         self.parse_assignment()
     }
 
-    fn parse_assignment(&mut self) -> AstNode {
+    fn parse_assignment(&mut self) -> Result {
         if let Some(t) = self.lexer.expect(&TokenKind::Let) {
             if let Some(id) = self.lexer.expect_identifier() {
                 if self.lexer.expect(&TokenKind::Equal).is_some() {
-                    AstNode::Assignment {
+                    Ok(AstNode::Assignment {
                         identifier: id,
-                        operand: Box::new(self.parse_expression()),
-                    }
+                        operand: Box::new(self.parse_expression()?),
+                    })
                 } else {
-                    panic!("Missing = in assignment at {}", t.position)
+                    Err(Error::AssignmentMissingEqual(t))
                 }
             } else {
-                panic!("Missing variable name in assignment at {}", t.position)
+                Err(Error::AssignmentMissingIdentifier(t))
             }
         } else {
             self.parse_disjunction()
         }
     }
 
-    fn parse_disjunction(&mut self) -> AstNode {
-        let mut acc = self.parse_conjunction();
+    fn parse_disjunction(&mut self) -> Result {
+        let mut acc = self.parse_conjunction()?;
 
         while self.lexer.expect(&TokenKind::Or).is_some() {
             acc = AstNode::BinaryExpr {
                 operator: Op::Or,
                 lhs: Box::new(acc),
-                rhs: Box::new(self.parse_conjunction()),
+                rhs: Box::new(self.parse_conjunction()?),
             }
         }
 
-        acc
+        Ok(acc)
     }
 
-    fn parse_conjunction(&mut self) -> AstNode {
-        let mut acc = self.parse_equality();
+    fn parse_conjunction(&mut self) -> Result {
+        let mut acc = self.parse_equality()?;
 
         while self.lexer.expect(&TokenKind::And).is_some() {
             acc = AstNode::BinaryExpr {
                 operator: Op::And,
                 lhs: Box::new(acc),
-                rhs: Box::new(self.parse_equality()),
+                rhs: Box::new(self.parse_equality()?),
             }
         }
 
-        acc
+        Ok(acc)
     }
 
-    fn parse_equality(&mut self) -> AstNode {
-        let lhs = self.parse_comparison();
+    fn parse_equality(&mut self) -> Result {
+        let lhs = self.parse_comparison()?;
 
         if let Some(t) = self
             .lexer
             .expect_any(&[TokenKind::EqualEqual, TokenKind::BangEqual])
         {
-            return AstNode::BinaryExpr {
+            return Ok(AstNode::BinaryExpr {
                 operator: (&t.kind).into(),
                 lhs: Box::new(lhs),
-                rhs: Box::new(self.parse_comparison()),
-            };
+                rhs: Box::new(self.parse_comparison()?),
+            });
         }
 
-        lhs
+        Ok(lhs)
     }
 
-    fn parse_comparison(&mut self) -> AstNode {
-        let lhs = self.parse_addition();
+    fn parse_comparison(&mut self) -> Result {
+        let lhs = self.parse_addition()?;
 
         if let Some(t) = self.lexer.expect_any(&[
             TokenKind::Greater,
@@ -174,76 +190,76 @@ impl Parser<'source> {
             TokenKind::Less,
             TokenKind::LessEqual,
         ]) {
-            return AstNode::BinaryExpr {
+            return Ok(AstNode::BinaryExpr {
                 operator: (&t.kind).into(),
                 lhs: Box::new(lhs),
-                rhs: Box::new(self.parse_addition()),
-            };
+                rhs: Box::new(self.parse_addition()?),
+            });
         }
 
-        lhs
+        Ok(lhs)
     }
 
-    fn parse_addition(&mut self) -> AstNode {
-        let mut acc = self.parse_multiplication();
+    fn parse_addition(&mut self) -> Result {
+        let mut acc = self.parse_multiplication()?;
 
         while let Some(t) = self.lexer.expect_any(&[TokenKind::Plus, TokenKind::Minus]) {
             acc = AstNode::BinaryExpr {
                 operator: (&t.kind).into(),
                 lhs: Box::new(acc),
-                rhs: Box::new(self.parse_multiplication()),
+                rhs: Box::new(self.parse_multiplication()?),
             }
         }
 
-        acc
+        Ok(acc)
     }
 
-    fn parse_multiplication(&mut self) -> AstNode {
-        let mut acc = self.parse_unary();
+    fn parse_multiplication(&mut self) -> Result {
+        let mut acc = self.parse_unary()?;
 
         while let Some(t) = self.lexer.expect_any(&[TokenKind::Star, TokenKind::Slash]) {
             acc = AstNode::BinaryExpr {
                 operator: (&t.kind).into(),
                 lhs: Box::new(acc),
-                rhs: Box::new(self.parse_unary()),
+                rhs: Box::new(self.parse_unary()?),
             }
         }
 
-        acc
+        Ok(acc)
     }
 
-    fn parse_unary(&mut self) -> AstNode {
+    fn parse_unary(&mut self) -> Result {
         if let Some(t) = self.lexer.expect_any(&[TokenKind::Bang, TokenKind::Minus]) {
-            return AstNode::UnaryExpr {
+            return Ok(AstNode::UnaryExpr {
                 operator: (&t.kind).into(),
-                operand: Box::new(self.parse_unary()),
-            };
+                operand: Box::new(self.parse_unary()?),
+            });
         }
 
         self.parse_primary()
     }
 
-    fn parse_primary(&mut self) -> AstNode {
+    fn parse_primary(&mut self) -> Result {
         if let Some(t) = self.lexer.next() {
             match t.kind {
-                TokenKind::Number(n) => AstNode::Number(n),
-                TokenKind::Boolean(b) => AstNode::Boolean(b),
-                TokenKind::StringLiteral(s) => AstNode::StringLiteral(s),
-                TokenKind::Identifier(id) => AstNode::Identifier(id),
-                TokenKind::Nil => AstNode::Nil,
+                TokenKind::Number(n) => Ok(AstNode::Number(n)),
+                TokenKind::Boolean(b) => Ok(AstNode::Boolean(b)),
+                TokenKind::StringLiteral(s) => Ok(AstNode::StringLiteral(s)),
+                TokenKind::Identifier(id) => Ok(AstNode::Identifier(id)),
+                TokenKind::Nil => Ok(AstNode::Nil),
                 TokenKind::OpenParen => {
                     let expr = self.parse_expression();
 
                     if self.lexer.expect(&TokenKind::CloseParen).is_some() {
-                        return AstNode::Grouping(Box::new(expr));
+                        Ok(AstNode::Grouping(Box::new(expr?)))
+                    } else {
+                        Err(Error::UnclosedGrouping(t))
                     }
-
-                    panic!("Unclosed paren grouping at {}", t.position)
                 }
-                _ => panic!("Unexpected token {:?} at {}", t.kind, t.position),
+                _ => Err(Error::UnexpectedToken(t))
             }
         } else {
-            AstNode::Empty
+            Err(Error::UnexpectedEof)
         }
     }
 }

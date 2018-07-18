@@ -99,7 +99,6 @@ impl Environment {
                     }
                 }
             }
-            _ => Type::Nil, //temporary
         }
     }
 }
