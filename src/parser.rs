@@ -9,7 +9,7 @@ enum Error {
     UnexpectedEof,
     AssignmentMissingEqual(Token),
     AssignmentMissingIdentifier(Token),
-    IfMissingThen(Token),
+    IfMissingThenClause(Token),
 }
 
 #[derive(Debug, PartialEq)]
@@ -33,7 +33,7 @@ pub enum AstNode {
         identifier: String,
         operand: Box<AstNode>,
     },
-    If {
+    IfExpr {
         check: Box<AstNode>,
         then: Box<AstNode>,
         otherwise: Option<Box<AstNode>>,
@@ -93,8 +93,8 @@ impl Parser<'source> {
     pub fn parse(&mut self) -> AstNode {
         match self.parse_program() {
             Ok(p) => p,
-            err => {
-                println!("syntax error: {:?}", err);
+            Err(err) => {
+                println!("syntax error: {:#?}", err);
                 AstNode::Nil
             }
         }
@@ -150,20 +150,20 @@ impl Parser<'source> {
             let then = self.parse_expression()?;
             if self.lexer.expect(&TokenKind::Else).is_some() {
                 let otherwise = self.parse_expression()?;
-                Ok(AstNode::If {
+                Ok(AstNode::IfExpr {
                     check: Box::new(check),
                     then: Box::new(then),
                     otherwise: Some(Box::new(otherwise)),
                 })
             } else {
-                Ok(AstNode::If {
+                Ok(AstNode::IfExpr {
                     check: Box::new(check),
                     then: Box::new(then),
                     otherwise: None,
                 })
             }
         } else {
-            Err(Error::IfMissingThen(t))
+            Err(Error::IfMissingThenClause(t))
         }
     }
 
