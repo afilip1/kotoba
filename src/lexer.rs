@@ -40,6 +40,9 @@ pub enum TokenKind {
     Or,
     Semicolon,
     Let,
+    If,
+    Then,
+    Else,
 }
 
 pub struct Lexer<'source> {
@@ -198,6 +201,9 @@ impl Lexer<'source> {
                 "and" => TokenKind::And,
                 "or" => TokenKind::Or,
                 "let" => TokenKind::Let,
+                "if" => TokenKind::If,
+                "then" => TokenKind::Then,
+                "else" => TokenKind::Else,
                 other => TokenKind::Identifier(other.to_owned()),
             },
         }

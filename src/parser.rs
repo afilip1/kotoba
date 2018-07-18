@@ -9,6 +9,7 @@ enum Error {
     UnexpectedEof,
     AssignmentMissingEqual(Token),
     AssignmentMissingIdentifier(Token),
+    IfMissingThen(Token),
 }
 
 #[derive(Debug, PartialEq)]
@@ -31,6 +32,11 @@ pub enum AstNode {
     Assignment {
         identifier: String,
         operand: Box<AstNode>,
+    },
+    If {
+        check: Box<AstNode>,
+        then: Box<AstNode>,
+        otherwise: Option<Box<AstNode>>,
     },
     Nil,
 }
@@ -106,7 +112,7 @@ impl Parser<'source> {
                 TokenKind::Semicolon => {
                     exprs.push(self.parse_expression()?);
                 }
-                _ => return Err(Error::UnexpectedToken(t))
+                _ => return Err(Error::UnexpectedToken(t)),
             }
         }
 
@@ -114,25 +120,50 @@ impl Parser<'source> {
     }
 
     fn parse_expression(&mut self) -> Result {
-        self.parse_assignment()
-    }
-
-    fn parse_assignment(&mut self) -> Result {
         if let Some(t) = self.lexer.expect(&TokenKind::Let) {
-            if let Some(id) = self.lexer.expect_identifier() {
-                if self.lexer.expect(&TokenKind::Equal).is_some() {
-                    Ok(AstNode::Assignment {
-                        identifier: id,
-                        operand: Box::new(self.parse_expression()?),
-                    })
-                } else {
-                    Err(Error::AssignmentMissingEqual(t))
-                }
-            } else {
-                Err(Error::AssignmentMissingIdentifier(t))
-            }
+            self.parse_assignment(t)
+        } else if let Some(t) = self.lexer.expect(&TokenKind::If) {
+            self.parse_if(t)
         } else {
             self.parse_disjunction()
+        }
+    }
+
+    fn parse_assignment(&mut self, t: Token) -> Result {
+        if let Some(id) = self.lexer.expect_identifier() {
+            if self.lexer.expect(&TokenKind::Equal).is_some() {
+                Ok(AstNode::Assignment {
+                    identifier: id,
+                    operand: Box::new(self.parse_expression()?),
+                })
+            } else {
+                Err(Error::AssignmentMissingEqual(t))
+            }
+        } else {
+            Err(Error::AssignmentMissingIdentifier(t))
+        }
+    }
+
+    fn parse_if(&mut self, t: Token) -> Result {
+        let check = self.parse_expression()?;
+        if self.lexer.expect(&TokenKind::Then).is_some() {
+            let then = self.parse_expression()?;
+            if self.lexer.expect(&TokenKind::Else).is_some() {
+                let otherwise = self.parse_expression()?;
+                Ok(AstNode::If {
+                    check: Box::new(check),
+                    then: Box::new(then),
+                    otherwise: Some(Box::new(otherwise)),
+                })
+            } else {
+                Ok(AstNode::If {
+                    check: Box::new(check),
+                    then: Box::new(then),
+                    otherwise: None,
+                })
+            }
+        } else {
+            Err(Error::IfMissingThen(t))
         }
     }
 
@@ -256,7 +287,7 @@ impl Parser<'source> {
                         Err(Error::UnclosedGrouping(t))
                     }
                 }
-                _ => Err(Error::UnexpectedToken(t))
+                _ => Err(Error::UnexpectedToken(t)),
             }
         } else {
             Err(Error::UnexpectedEof)

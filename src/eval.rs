@@ -47,6 +47,22 @@ impl Environment {
             AstNode::Boolean(b) => Type::Boolean(*b),
             AstNode::StringLiteral(s) => Type::String(s.clone()),
             AstNode::Identifier(id) => self.context[id].clone(),
+            AstNode::If {
+                check,
+                then,
+                otherwise,
+            } => match self.eval(check) {
+                Type::Boolean(true) => self.eval(then),
+                Type::Boolean(false) => if let Some(expr) = otherwise {
+                    self.eval(expr)
+                } else {
+                    Type::Nil
+                },
+                _ => {
+                    println!("An if check must be a boolean expression");
+                    std::process::exit(5);
+                }
+            },
             AstNode::Assignment {
                 identifier,
                 operand,

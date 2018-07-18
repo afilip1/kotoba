@@ -1,8 +1,9 @@
 program = expression? (";" expression)*;
 
-expression = assignment;
+expression = assignment | if | disjunction;
 
-assignment = "let" identifier "=" expression | disjunction;
+assignment = "let" identifier "=" expression;
+if = "if" expression "then" expression ("else" expression)?;
 
 disjunction = conjunction ("or" conjunction)*;
 conjunction = equality ("and" equality)*;
