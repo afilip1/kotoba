@@ -5,12 +5,13 @@ type Result = std::result::Result<AstNode, Error>;
 #[derive(Debug)]
 enum Error {
     UnclosedGrouping(Token),
-    UnclosedBlock(Token),    
+    UnclosedBlock(Token),
     UnexpectedToken(Token),
     UnexpectedEof,
     AssignmentMissingEqual(Token),
     AssignmentMissingIdentifier(Token),
     IfMissingThenClause(Token),
+    MissingSemicolon(Token),
 }
 
 #[derive(Debug, PartialEq)]
@@ -105,18 +106,15 @@ impl Parser<'source> {
     fn parse_program(&mut self) -> Result {
         let mut exprs = vec![];
 
-        if self.lexer.peek().is_some() && self.lexer.peek().unwrap().kind != TokenKind::CloseCurlyBrace {
-            exprs.push(self.parse_expression()?);
-        }
-
         while let Some(t) = self.lexer.peek() {
             match t.kind {
-                TokenKind::Semicolon => {
-                    self.lexer.next();
-                    exprs.push(self.parse_expression()?);
-                }
                 TokenKind::CloseCurlyBrace => break,
-                _ => return Err(Error::UnexpectedToken(t)),
+                _ => {
+                    exprs.push(self.parse_expression()?);
+                    self.lexer
+                        .expect(&TokenKind::Semicolon)
+                        .ok_or(Error::MissingSemicolon(t))?;
+                }
             }
         }
 
@@ -290,7 +288,7 @@ impl Parser<'source> {
                     } else {
                         Err(Error::UnclosedGrouping(t))
                     }
-                },
+                }
                 TokenKind::OpenCurlyBrace => {
                     let program = self.parse_program()?;
 
