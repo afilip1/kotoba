@@ -43,6 +43,7 @@ impl Environment {
             AstNode::Nil => Type::Nil,
             AstNode::Program(exprs) => exprs.iter().fold(Type::Nil, |_, e| self.eval(e)),
             AstNode::Grouping(expr) => self.eval(expr),
+            AstNode::Block(p) => self.eval(p),
             AstNode::Number(n) => Type::Number(*n),
             AstNode::Boolean(b) => Type::Boolean(*b),
             AstNode::StringLiteral(s) => Type::String(s.clone()),
@@ -55,7 +56,7 @@ impl Environment {
                 Type::Boolean(true) => self.eval(then),
                 Type::Boolean(false) => match otherwise {
                     Some(o) => self.eval(o),
-                    _ => Type::Nil
+                    _ => Type::Nil,
                 },
                 _ => {
                     println!("An if check must be a boolean expression");

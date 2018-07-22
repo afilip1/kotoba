@@ -12,4 +12,4 @@ comparison = addition (">" | ">=" | "<" | "<=") addition;
 addition = multi8n (("+" | "-") multi8n)*;
 multi8n = unary (("*" | "/") unary)*;
 unary = ("!" | "-") unary | primary;
-primary = number | boolean | string | nil | identifier | "(" expression ")";
+primary = number | boolean | string | nil | identifier | "(" expression ")" | "{" program "}";

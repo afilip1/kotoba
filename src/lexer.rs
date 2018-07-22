@@ -36,6 +36,8 @@ pub enum TokenKind {
     Bang,
     OpenParen,
     CloseParen,
+    OpenCurlyBrace,
+    CloseCurlyBrace,
     And,
     Or,
     Semicolon,
@@ -78,6 +80,8 @@ impl Iterator for Lexer<'source> {
                         b'/' => TokenKind::Slash,
                         b'(' => TokenKind::OpenParen,
                         b')' => TokenKind::CloseParen,
+                        b'{' => TokenKind::OpenCurlyBrace,
+                        b'}' => TokenKind::CloseCurlyBrace,
                         b';' => TokenKind::Semicolon,
                         other => {
                             println!(

@@ -5,6 +5,7 @@ type Result = std::result::Result<AstNode, Error>;
 #[derive(Debug)]
 enum Error {
     UnclosedGrouping(Token),
+    UnclosedBlock(Token),    
     UnexpectedToken(Token),
     UnexpectedEof,
     AssignmentMissingEqual(Token),
@@ -18,6 +19,7 @@ pub enum AstNode {
     Boolean(bool),
     StringLiteral(String),
     Grouping(Box<AstNode>),
+    Block(Box<AstNode>),
     Identifier(String),
     UnaryExpr {
         operator: Op,
@@ -103,15 +105,17 @@ impl Parser<'source> {
     fn parse_program(&mut self) -> Result {
         let mut exprs = vec![];
 
-        if self.lexer.peek().is_some() {
+        if self.lexer.peek().is_some() && self.lexer.peek().unwrap().kind != TokenKind::CloseCurlyBrace {
             exprs.push(self.parse_expression()?);
         }
 
-        while let Some(t) = self.lexer.next() {
+        while let Some(t) = self.lexer.peek() {
             match t.kind {
                 TokenKind::Semicolon => {
+                    self.lexer.next();
                     exprs.push(self.parse_expression()?);
                 }
+                TokenKind::CloseCurlyBrace => break,
                 _ => return Err(Error::UnexpectedToken(t)),
             }
         }
@@ -279,12 +283,21 @@ impl Parser<'source> {
                 TokenKind::Identifier(id) => Ok(AstNode::Identifier(id)),
                 TokenKind::Nil => Ok(AstNode::Nil),
                 TokenKind::OpenParen => {
-                    let expr = self.parse_expression();
+                    let expr = self.parse_expression()?;
 
                     if self.lexer.expect(&TokenKind::CloseParen).is_some() {
-                        Ok(AstNode::Grouping(Box::new(expr?)))
+                        Ok(AstNode::Grouping(Box::new(expr)))
                     } else {
                         Err(Error::UnclosedGrouping(t))
+                    }
+                },
+                TokenKind::OpenCurlyBrace => {
+                    let program = self.parse_program()?;
+
+                    if self.lexer.expect(&TokenKind::CloseCurlyBrace).is_some() {
+                        Ok(AstNode::Block(Box::new(program)))
+                    } else {
+                        Err(Error::UnclosedBlock(t))
                     }
                 }
                 _ => Err(Error::UnexpectedToken(t)),
