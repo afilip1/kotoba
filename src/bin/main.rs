@@ -1,4 +1,4 @@
-use kotoba::{eval::Environment, parser::Parser};
+use kotoba::{eval::Environment, parser::Parser, lexer::Lexer};
 use std::{
     fs::File,
     io::{stdin, stdout, Read, Write},
@@ -35,5 +35,5 @@ fn interpret_file(path: &str) {
         .read_to_string(&mut source)
         .expect("couldn't read file");
 
-    println!("{}", Environment::new().eval(&Parser::new(&source).parse()));
+    println!("{:#?}", Lexer::new(&source).map(|t| t.kind).collect::<Vec<_>>());
 }

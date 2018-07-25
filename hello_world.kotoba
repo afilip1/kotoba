@@ -1,10 +1,1 @@
-let h = "hello";
-let w = "world";
-
-if true and 3 < 2 then {} else {
-    let first = "Yuu";
-    let last = "rai";
-    let w = first + last
-};
-
-h + " " + w
+fn div(q, n): ret n % q == 0; x = 1, while x <= 100: if div(3, x): print("Fizz"); if div(5, x): print("Buzz"); if !(div3(x) or div5(x)): print(x); print("\n"), x = x + 1;

@@ -22,29 +22,43 @@ pub enum TokenKind {
     Identifier(String),
     StringLiteral(String),
     Nil,
+
+    OpenParen,
+    CloseParen,
+
     Equal,
     EqualEqual,
+    Bang,
     BangEqual,
     Greater,
     GreaterEqual,
     Less,
     LessEqual,
+
+    And,
+    Or,
+
     Plus,
     Minus,
     Star,
     Slash,
-    Bang,
-    OpenParen,
-    CloseParen,
+    Percent,
+
+    Colon,
+    Comma,
+    Semicolon,
+
+    If,
+    Else,
+    While,
+    Fn,
+    Ret,
+
+    // deprecated
+    Let,
+    Then,
     OpenCurlyBrace,
     CloseCurlyBrace,
-    And,
-    Or,
-    Semicolon,
-    Let,
-    If,
-    Then,
-    Else,
 }
 
 pub struct Lexer<'source> {
@@ -78,10 +92,13 @@ impl Iterator for Lexer<'source> {
                         b'-' => TokenKind::Minus,
                         b'*' => TokenKind::Star,
                         b'/' => TokenKind::Slash,
+                        b'%' => TokenKind::Percent,
                         b'(' => TokenKind::OpenParen,
                         b')' => TokenKind::CloseParen,
                         b'{' => TokenKind::OpenCurlyBrace,
                         b'}' => TokenKind::CloseCurlyBrace,
+                        b':' => TokenKind::Colon,
+                        b',' => TokenKind::Comma,
                         b';' => TokenKind::Semicolon,
                         other => {
                             println!(
@@ -208,6 +225,9 @@ impl Lexer<'source> {
                 "if" => TokenKind::If,
                 "then" => TokenKind::Then,
                 "else" => TokenKind::Else,
+                "while" => TokenKind::While,
+                "fn" => TokenKind::Fn,
+                "ret" => TokenKind::Ret,
                 other => TokenKind::Identifier(other.to_owned()),
             },
         }

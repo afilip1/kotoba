@@ -228,7 +228,7 @@ nil
 // Expressions
 1 + 3
 -45.67 / (3 - 345677)
-true && !false || 23 >= 45
+true and !false or 23 >= 45
 
 // Statements
 x = 123, // , continues current scope to the next stmt (enforced for readability)
@@ -241,7 +241,7 @@ fn foo(x, y): bar(x), baz(y), ret 1; // nil if no explicit ret
 
 ## Syntax example: Fizzbuzz
 ```rust
-fn div(q, n): ret n % q == 0; x = 1, while x <= 100: if div(3, x): print("Fizz"); if div(5, x): print("Buzz"); if !(div3(x) || div5(x)): print(x); print("\n"), x = x + 1;
+fn div(q, n): ret n % q == 0; x = 1, while x <= 100: if div(3, x): print("Fizz"); if div(5, x): print("Buzz"); if !(div3(x) or div5(x)): print(x); print("\n"), x = x + 1;
 ```
 
 ## Syntax example with annotated scopes
@@ -253,7 +253,7 @@ while x <= 100: // ------------------ extend: global <- while
     if div(3, x): // -------------------- extend: global <- while <- if
         print("Fizz"); // -------------------- yield to parent: global <- while
     if div(5, x): print("Buzz"); // ------ extend: global <- while <- if, yield
-    if !(div3(x) || div5(x)): print(x); // extend: global <- while <- if, yield
+    if !(div3(x) or div5(x)): print(x); // extend: global <- while <- if, yield
     print("\n"), // --------------------- global <- while, continue
     x = x + 1; // ------------------------ global <- while, yield
 // ---------------------------------- global
