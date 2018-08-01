@@ -53,12 +53,6 @@ pub enum TokenKind {
     While,
     Fn,
     Ret,
-
-    // deprecated
-    Let,
-    Then,
-    OpenCurlyBrace,
-    CloseCurlyBrace,
 }
 
 pub struct Lexer<'source> {
@@ -95,8 +89,6 @@ impl Iterator for Lexer<'source> {
                         b'%' => TokenKind::Percent,
                         b'(' => TokenKind::OpenParen,
                         b')' => TokenKind::CloseParen,
-                        b'{' => TokenKind::OpenCurlyBrace,
-                        b'}' => TokenKind::CloseCurlyBrace,
                         b':' => TokenKind::Colon,
                         b',' => TokenKind::Comma,
                         b';' => TokenKind::Semicolon,
@@ -221,9 +213,7 @@ impl Lexer<'source> {
                 "nil" => TokenKind::Nil,
                 "and" => TokenKind::And,
                 "or" => TokenKind::Or,
-                "let" => TokenKind::Let,
                 "if" => TokenKind::If,
-                "then" => TokenKind::Then,
                 "else" => TokenKind::Else,
                 "while" => TokenKind::While,
                 "fn" => TokenKind::Fn,
