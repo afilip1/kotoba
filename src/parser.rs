@@ -17,6 +17,7 @@ enum Error {
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
     Program(Vec<AstNode>),
+    ProgramRoot(Vec<AstNode>),
 
     Number(f64),
     Boolean(bool),
@@ -114,10 +115,15 @@ impl Parser<'source> {
     }
 
     pub fn parse(&mut self) -> AstNode {
-        self.parse_program().unwrap_or_else(|err| {
-            println!("syntax error: {:#?}", err);
-            AstNode::Nil
-        })
+        //TODO: consume token stream
+        match self.parse_program() {
+            Ok(AstNode::Program(p)) => AstNode::ProgramRoot(p),
+            Err(err) => {
+                println!("syntax error: {:#?}", err);
+                AstNode::Nil
+            }
+            _ => unreachable!()
+        }
     }
 
     fn parse_program(&mut self) -> Result {
@@ -185,7 +191,7 @@ impl Parser<'source> {
         let condition = self.parse_expression()?;
 
         if self.lexer.expect(&TokenKind::Colon).is_none() {
-            return Err(Error::MissingColon(t))
+            return Err(Error::MissingColon(t));
         }
 
         let body = self.parse_program()?;

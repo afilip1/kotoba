@@ -1,0 +1,164 @@
+Program(
+    [
+        FnStmt {
+            identifier: "div",
+            params: [
+                "q",
+                "n"
+            ],
+            body: Program(
+                [
+                    RetStmt(
+                        BinaryExpr {
+                            operator: EqualEqual,
+                            lhs: BinaryExpr {
+                                operator: Percent,
+                                lhs: Identifier(
+                                    "n"
+                                ),
+                                rhs: Identifier(
+                                    "q"
+                                )
+                            },
+                            rhs: Number(
+                                0.0
+                            )
+                        }
+                    )
+                ]
+            )
+        },
+        Assignment {
+            identifier: "x",
+            operand: Number(
+                1.0
+            )
+        },
+        WhileStmt {
+            condition: BinaryExpr {
+                operator: LessEqual,
+                lhs: Identifier(
+                    "x"
+                ),
+                rhs: Number(
+                    100.0
+                )
+            },
+            body: Program(
+                [
+                    IfStmt {
+                        condition: FnCall {
+                            identifier: "div",
+                            args: [
+                                Number(
+                                    3.0
+                                ),
+                                Identifier(
+                                    "x"
+                                )
+                            ]
+                        },
+                        then_body: Program(
+                            [
+                                FnCall {
+                                    identifier: "print",
+                                    args: [
+                                        StringLiteral(
+                                            "Fizz"
+                                        )
+                                    ]
+                                }
+                            ]
+                        ),
+                        else_body: None
+                    },
+                    IfStmt {
+                        condition: FnCall {
+                            identifier: "div",
+                            args: [
+                                Number(
+                                    5.0
+                                ),
+                                Identifier(
+                                    "x"
+                                )
+                            ]
+                        },
+                        then_body: Program(
+                            [
+                                FnCall {
+                                    identifier: "print",
+                                    args: [
+                                        StringLiteral(
+                                            "Buzz"
+                                        )
+                                    ]
+                                }
+                            ]
+                        ),
+                        else_body: None
+                    },
+                    IfStmt {
+                        condition: UnaryExpr {
+                            operator: Bang,
+                            operand: Grouping(
+                                BinaryExpr {
+                                    operator: Or,
+                                    lhs: FnCall {
+                                        identifier: "div3",
+                                        args: [
+                                            Identifier(
+                                                "x"
+                                            )
+                                        ]
+                                    },
+                                    rhs: FnCall {
+                                        identifier: "div5",
+                                        args: [
+                                            Identifier(
+                                                "x"
+                                            )
+                                        ]
+                                    }
+                                }
+                            )
+                        },
+                        then_body: Program(
+                            [
+                                FnCall {
+                                    identifier: "print",
+                                    args: [
+                                        Identifier(
+                                            "x"
+                                        )
+                                    ]
+                                }
+                            ]
+                        ),
+                        else_body: None
+                    },
+                    FnCall {
+                        identifier: "print",
+                        args: [
+                            StringLiteral(
+                                "\\n"
+                            )
+                        ]
+                    },
+                    Assignment {
+                        identifier: "x",
+                        operand: BinaryExpr {
+                            operator: Plus,
+                            lhs: Identifier(
+                                "x"
+                            ),
+                            rhs: Number(
+                                1.0
+                            )
+                        }
+                    }
+                ]
+            )
+        }
+    ]
+)

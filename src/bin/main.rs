@@ -1,4 +1,6 @@
-use kotoba::{eval::Environment, parser::Parser, lexer::Lexer};
+use kotoba::parser::Parser;
+use kotoba::eval::*;
+
 use std::{
     fs::File,
     io::{stdin, stdout, Read, Write},
@@ -14,7 +16,8 @@ fn main() {
 }
 
 fn start_repl() -> ! {
-    let mut env = Environment::new();
+    let env = Env::new();
+
     loop {
         print!("::<> ");
         stdout().flush().unwrap();
@@ -24,7 +27,9 @@ fn start_repl() -> ! {
 
         let ast = Parser::new(&input).parse();
 
-        println!("{}", env.eval(&ast));
+        // println!("{:#?}\n", &ast);
+        println!("{}", Env::eval(env.clone(), &ast));
+        // println!("{:#?}", env);
     }
 }
 
@@ -35,5 +40,6 @@ fn interpret_file(path: &str) {
         .read_to_string(&mut source)
         .expect("couldn't read file");
 
-    println!("{:#?}", Lexer::new(&source).map(|t| t.kind).collect::<Vec<_>>());
+    let ast = Parser::new(&source).parse();
+    println!("{:#?}", &ast);
 }
