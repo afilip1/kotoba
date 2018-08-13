@@ -1,9 +1,9 @@
 use crate::parser::*;
 use std::{
+    cell::RefCell,
     collections::HashMap,
-    fmt::{Display, Formatter, Result},
+    fmt::{Debug, Display, Formatter, Result},
     rc::Rc,
-    cell::RefCell
 };
 
 type EvalResult = std::result::Result<Type, Internal>;
@@ -36,15 +36,65 @@ enum Internal {
     Return(Type),
 }
 
+enum Callable {
+    Builtin(Box<dyn Fn(Vec<Type>) -> Type>),
+    UserDefined,
+}
+
+impl Debug for Callable {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            Callable::Builtin(_) => write!(f, "Callable"),
+            Callable::UserDefined => write!(f, "UserDefined"),
+        }
+    }
+}
+
+impl Callable {
+    fn call(&self, args: Vec<Type>) -> Type {
+        match self {
+            Callable::Builtin(f) => f(args),
+            Callable::UserDefined => Type::Nil,
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct Env {
     ctx_var: HashMap<String, Type>,
+    ctx_fn: HashMap<String, Callable>,
     parent: Option<Rc<RefCell<Env>>>,
 }
 
 impl Env {
     pub fn new() -> Rc<RefCell<Env>> {
-        Rc::new(RefCell::from(Env::default()))
+        let env = Env {
+            ctx_fn: {
+                let mut map = HashMap::new();
+                map.insert("hello_world".to_string(), Callable::Builtin(Box::new(|_| Type::String("Hello, World!".to_string()))));
+                map.insert("println".to_string(), Callable::Builtin(Box::new(|args| {
+                    for a in args {
+                        println!("{}", match a {
+                            Type::Number(n) => n.to_string(),
+                            Type::Boolean(b) => b.to_string(),
+                            Type::String(s) => s,
+                            Type::Nil => "nil".to_string(),
+                        });
+                    }
+                    Type::Nil
+                })));
+                map
+            },
+            ..Default::default()
+        };
+        Rc::new(RefCell::from(env))
+    }
+
+    fn extend(env: Rc<RefCell<Env>>) -> Rc<RefCell<Env>> {
+        Rc::new(RefCell::from(Env {
+            parent: Some(env),
+            ..Default::default()
+        }))
     }
 
     pub fn eval(env: Rc<RefCell<Env>>, ast: &AstNode) -> Type {
@@ -62,25 +112,42 @@ impl Env {
 
             AstNode::Identifier(id) => {
                 if let Some(val) = env.borrow().ctx_var.get(id) {
-                    return Ok(val.clone())
+                    return Ok(val.clone());
                 }
-                if let Some(p) = &env.borrow().parent {
-                    return Env::eval_internal(p.clone(), &AstNode::Identifier(id.clone()))
+                if let Some(ref p) = env.borrow().parent {
+                    return Env::eval_internal(p.clone(), &AstNode::Identifier(id.clone()));
                 }
                 panic!("No such variable: {}", id);
-            },
-            AstNode::FnCall { .. } => Ok(Type::Nil),
+            }
+            AstNode::FnCall { identifier, args } => {
+                if let Some(func) = env.borrow().ctx_fn.get(identifier) {
+                    let args_evaled = args
+                        .iter()
+                        .map(|a| Env::eval_internal(env.clone(), a).unwrap())
+                        .collect();
+                    return Ok(func.call(args_evaled));
+                }
+                if let Some(ref p) = env.borrow().parent {
+                    return Env::eval_internal(
+                        p.clone(),
+                        &AstNode::FnCall {
+                            identifier: identifier.clone(),
+                            args: args.clone(),
+                        },
+                    ); //FIXME: cloning ಠ_ಠ
+                }
+                Ok(Type::Nil)
+            }
 
             AstNode::Program(stmts) => {
-                let local = Rc::new(RefCell::from(Env {
-                    parent: Some(env.clone()),
-                    ..Default::default()
-                }));
+                let local = Env::extend(env);
 
                 for s in stmts {
                     match s {
                         AstNode::RetStmt(expr) => {
-                            return Err(Internal::Return(Env::eval_internal(local.clone(), expr).unwrap()))
+                            return Err(Internal::Return(
+                                Env::eval_internal(local.clone(), expr).unwrap(),
+                            ))
                         }
                         _ => {
                             Env::eval_internal(local.clone(), s).unwrap();
@@ -97,7 +164,9 @@ impl Env {
                 for s in stmts {
                     match s {
                         AstNode::RetStmt(expr) => {
-                            return Err(Internal::Return(Env::eval_internal(env.clone(), expr).unwrap()))
+                            return Err(Internal::Return(
+                                Env::eval_internal(env.clone(), expr).unwrap(),
+                            ))
                         }
                         _ => {
                             ret = Env::eval_internal(env.clone(), s).unwrap();
@@ -134,27 +203,29 @@ impl Env {
             },
 
             AstNode::WhileStmt { condition, body } => {
-                while let Type::Boolean(true) = Env::eval_internal(env.clone(), condition).unwrap() {
+                while let Type::Boolean(true) = Env::eval_internal(env.clone(), condition).unwrap()
+                {
                     Env::eval_internal(env.clone(), body)?;
                 }
                 Ok(Type::Nil)
             }
 
-            AstNode::FnStmt {..} => Ok(Type::Nil), // temp
+            AstNode::FnStmt { .. } => Ok(Type::Nil), // temp
 
-            AstNode::UnaryExpr { operator, operand } => {
-                Ok(match (operator, Env::eval_internal(env, operand).unwrap()) {
-                    (Op::Minus, Type::Number(n)) => Type::Number(-n),
-                    (Op::Bang, Type::Boolean(b)) => Type::Boolean(!b),
-                    _ => {
-                        println!(
-                            "Unary operator {:?} can not be applied to type: {:?}",
-                            operator, operand
-                        );
-                        std::process::exit(2);
-                    }
-                })
-            }
+            AstNode::UnaryExpr { operator, operand } => Ok(match (
+                operator,
+                Env::eval_internal(env, operand).unwrap(),
+            ) {
+                (Op::Minus, Type::Number(n)) => Type::Number(-n),
+                (Op::Bang, Type::Boolean(b)) => Type::Boolean(!b),
+                _ => {
+                    println!(
+                        "Unary operator {:?} can not be applied to type: {:?}",
+                        operator, operand
+                    );
+                    std::process::exit(2);
+                }
+            }),
 
             AstNode::BinaryExpr { operator, lhs, rhs } => Ok(match (
                 operator,

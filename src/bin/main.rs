@@ -1,45 +1,42 @@
-use kotoba::parser::Parser;
-use kotoba::eval::*;
-
+use kotoba::{eval::*, parser::Parser};
 use std::{
-    fs::File,
-    io::{stdin, stdout, Read, Write},
+    env, fs,
+    io::{self, Write},
 };
 
-fn main() {
-    let args = std::env::args().collect::<Vec<_>>();
+fn main() -> io::Result<()> {
+    let args: Vec<_> = env::args().collect();
+
     if args.len() == 1 {
-        start_repl()
+        start_repl()?
     } else {
-        interpret_file(&args[1])
+        interpret_file(&args[1])?
     }
+
+    Ok(())
 }
 
-fn start_repl() -> ! {
+fn start_repl() -> io::Result<()> {
     let env = Env::new();
 
     loop {
         print!("::<> ");
-        stdout().flush().unwrap();
+        io::stdout().flush()?;
 
         let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input)?;
 
         let ast = Parser::new(&input).parse();
-
-        // println!("{:#?}\n", &ast);
-        println!("{}", Env::eval(env.clone(), &ast));
-        // println!("{:#?}", env);
+        let res = Env::eval(env.clone(), &ast);
+        println!("{}", res);
     }
 }
 
-fn interpret_file(path: &str) {
-    let mut source = String::new();
-    File::open(path)
-        .expect("couldn't open file")
-        .read_to_string(&mut source)
-        .expect("couldn't read file");
+fn interpret_file(path: &str) -> io::Result<()> {
+    let source = fs::read_to_string(path)?;
 
     let ast = Parser::new(&source).parse();
     println!("{:#?}", &ast);
+
+    Ok(())
 }

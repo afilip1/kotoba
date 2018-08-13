@@ -14,7 +14,7 @@ enum Error {
     MissingParen(Token),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AstNode {
     Program(Vec<AstNode>),
     ProgramRoot(Vec<AstNode>),
@@ -63,7 +63,7 @@ pub enum AstNode {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Op {
     Bang,
     Star,
@@ -122,7 +122,7 @@ impl Parser<'source> {
                 println!("syntax error: {:#?}", err);
                 AstNode::Nil
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
@@ -388,19 +388,21 @@ impl Parser<'source> {
             // fn call
             let mut args = vec![];
 
-            if let Ok(arg) = self.parse_expression() {
-                args.push(arg);
+            if self.lexer.expect(&TokenKind::CloseParen).is_some() {
+                Ok(AstNode::FnCall { identifier, args })    
+            } else if self.lexer.peek().is_some() {
+                if let Ok(arg) = self.parse_expression() {
+                    args.push(arg);
 
-                while self.lexer.expect(&TokenKind::Comma).is_some() {
-                    args.push(self.parse_expression()?);
+                    while self.lexer.expect(&TokenKind::Comma).is_some() {
+                        args.push(self.parse_expression()?);
+                    }
                 }
-            }
 
-            if self.lexer.expect(&TokenKind::CloseParen).is_none() {
-                return Err(Error::FnCallMissingCloseParen(t));
+                Ok(AstNode::FnCall { identifier, args })
+            } else {
+                Err(Error::FnCallMissingCloseParen(t))
             }
-
-            Ok(AstNode::FnCall { identifier, args })
         } else if self.lexer.expect(&TokenKind::Equal).is_some() {
             // assignment
             Ok(AstNode::Assignment {
