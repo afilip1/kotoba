@@ -1,0 +1,1 @@
+x = 3 + 5 % 2 == 0, print("3 + 5 is "), if x: println("even") else println("odd");

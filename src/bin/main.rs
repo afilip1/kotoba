@@ -1,4 +1,4 @@
-use kotoba::{eval::*, parser::Parser};
+use kotoba::{parser::Parser, runtime::*};
 use std::{
     env, fs,
     io::{self, Write},
@@ -28,7 +28,7 @@ fn start_repl() -> io::Result<()> {
 
         let ast = Parser::new(&input).parse();
         let res = Env::eval(env.clone(), &ast);
-        println!("{}", res);
+        println!("=> {}", res);
     }
 }
 
@@ -36,7 +36,7 @@ fn interpret_file(path: &str) -> io::Result<()> {
     let source = fs::read_to_string(path)?;
 
     let ast = Parser::new(&source).parse();
-    println!("{:#?}", &ast);
+    Env::eval(Env::new(), &ast);
 
     Ok(())
 }

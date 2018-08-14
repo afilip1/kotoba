@@ -1,14 +1,6 @@
 use crate::source_stream::*;
 use std::collections::HashMap;
 
-macro_rules! hashmap {
-    ($($key:expr => $value:expr),*) => ({
-        let mut tmp = std::collections::HashMap::new();
-        $(tmp.insert($key, $value);)*
-        tmp
-    });
-}
-
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
@@ -53,6 +45,7 @@ pub enum TokenKind {
     While,
     Fn,
     Ret,
+    Nonlocal,
 }
 
 pub struct Lexer<'source> {
@@ -218,6 +211,7 @@ impl Lexer<'source> {
                 "while" => TokenKind::While,
                 "fn" => TokenKind::Fn,
                 "ret" => TokenKind::Ret,
+                "nonlocal" => TokenKind::Nonlocal,
                 other => TokenKind::Identifier(other.to_owned()),
             },
         }

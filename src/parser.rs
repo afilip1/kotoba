@@ -46,6 +46,7 @@ pub enum AstNode {
     Assignment {
         identifier: String,
         operand: Box<AstNode>,
+        nonlocal: bool,
     },
     IfStmt {
         condition: Box<AstNode>,
@@ -148,6 +149,23 @@ impl Parser<'source> {
                 TokenKind::Ret => {
                     self.lexer.next();
                     stmts.push(AstNode::RetStmt(Box::new(self.parse_expression()?)))
+                }
+                TokenKind::Nonlocal => {
+                    self.lexer.next();
+                    let ret = match self.parse_expression()? {
+                        AstNode::Assignment {
+                            identifier,
+                            operand,
+                            ..
+                        } => AstNode::Assignment {
+                            identifier,
+                            operand,
+                            nonlocal: true,
+                        },
+                        _ => panic!("not an assigment?"),
+                    };
+
+                    stmts.push(ret)
                 }
                 _ => {
                     stmts.push(self.parse_expression()?);
@@ -389,7 +407,7 @@ impl Parser<'source> {
             let mut args = vec![];
 
             if self.lexer.expect(&TokenKind::CloseParen).is_some() {
-                Ok(AstNode::FnCall { identifier, args })    
+                Ok(AstNode::FnCall { identifier, args })
             } else if self.lexer.peek().is_some() {
                 if let Ok(arg) = self.parse_expression() {
                     args.push(arg);
@@ -399,7 +417,11 @@ impl Parser<'source> {
                     }
                 }
 
-                Ok(AstNode::FnCall { identifier, args })
+                if self.lexer.expect(&TokenKind::CloseParen).is_none() {
+                    Err(Error::FnCallMissingCloseParen(t))
+                } else {
+                    Ok(AstNode::FnCall { identifier, args })
+                }
             } else {
                 Err(Error::FnCallMissingCloseParen(t))
             }
@@ -408,6 +430,7 @@ impl Parser<'source> {
             Ok(AstNode::Assignment {
                 identifier,
                 operand: Box::new(self.parse_expression()?),
+                nonlocal: false,
             })
         } else {
             // variable access

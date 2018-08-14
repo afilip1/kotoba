@@ -1,12 +1,9 @@
-use crate::parser::*;
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fmt::{Debug, Display, Formatter, Result},
-    rc::Rc,
-};
+mod prelude;
 
-type EvalResult = std::result::Result<Type, Internal>;
+use crate::parser::*;
+use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
+
+type Result = std::result::Result<Type, Internal>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -16,8 +13,8 @@ pub enum Type {
     Nil,
 }
 
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -36,18 +33,11 @@ enum Internal {
     Return(Type),
 }
 
+#[derive(Debug)]
+#[allow(dead_code)]
 enum Callable {
-    Builtin(Box<dyn Fn(Vec<Type>) -> Type>),
-    UserDefined,
-}
-
-impl Debug for Callable {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            Callable::Builtin(_) => write!(f, "Callable"),
-            Callable::UserDefined => write!(f, "UserDefined"),
-        }
-    }
+    Builtin(fn(Vec<Type>) -> Type),
+    UserDefined, // TODO: impl
 }
 
 impl Callable {
@@ -69,24 +59,15 @@ pub struct Env {
 impl Env {
     pub fn new() -> Rc<RefCell<Env>> {
         let env = Env {
-            ctx_fn: {
-                let mut map = HashMap::new();
-                map.insert("hello_world".to_string(), Callable::Builtin(Box::new(|_| Type::String("Hello, World!".to_string()))));
-                map.insert("println".to_string(), Callable::Builtin(Box::new(|args| {
-                    for a in args {
-                        println!("{}", match a {
-                            Type::Number(n) => n.to_string(),
-                            Type::Boolean(b) => b.to_string(),
-                            Type::String(s) => s,
-                            Type::Nil => "nil".to_string(),
-                        });
-                    }
-                    Type::Nil
-                })));
-                map
+            ctx_fn: hashmap! {
+                "print".into() => Callable::Builtin(prelude::print),
+                "println".into() => Callable::Builtin(prelude::println),
+                "add_two".into() => Callable::Builtin(prelude::add_two),
+                "div".into() => Callable::Builtin(prelude::div)
             },
             ..Default::default()
         };
+
         Rc::new(RefCell::from(env))
     }
 
@@ -101,13 +82,12 @@ impl Env {
         Env::eval_internal(env, ast).unwrap()
     }
 
-    fn eval_internal(env: Rc<RefCell<Env>>, ast: &AstNode) -> EvalResult {
+    fn eval_internal(env: Rc<RefCell<Env>>, ast: &AstNode) -> Result {
         match ast {
             AstNode::Nil => Ok(Type::Nil),
             AstNode::Number(n) => Ok(Type::Number(*n)),
             AstNode::Boolean(b) => Ok(Type::Boolean(*b)),
             AstNode::StringLiteral(s) => Ok(Type::String(s.clone())),
-
             AstNode::Grouping(expr) => Env::eval_internal(env, expr),
 
             AstNode::Identifier(id) => {
@@ -119,6 +99,7 @@ impl Env {
                 }
                 panic!("No such variable: {}", id);
             }
+
             AstNode::FnCall { identifier, args } => {
                 if let Some(func) = env.borrow().ctx_fn.get(identifier) {
                     let args_evaled = args
@@ -180,9 +161,14 @@ impl Env {
             AstNode::Assignment {
                 identifier,
                 operand,
+                nonlocal
             } => {
                 let res = Env::eval_internal(env.clone(), operand).unwrap();
-                env.borrow_mut().ctx_var.insert(identifier.clone(), res);
+                if *nonlocal {
+                    Env::update_value(env, identifier, res);
+                } else {
+                    env.borrow_mut().ctx_var.insert(identifier.clone(), res);
+                }
                 Ok(Type::Nil)
             }
 
@@ -241,6 +227,7 @@ impl Env {
                     Op::Minus => Type::Number(lhsn - rhsn),
                     Op::Star => Type::Number(lhsn * rhsn),
                     Op::Slash => Type::Number(lhsn / rhsn),
+                    Op::Percent => Type::Number(lhsn % rhsn),
                     Op::Greater => Type::Boolean(lhsn > rhsn),
                     Op::GreaterEqual => Type::Boolean(lhsn >= rhsn),
                     Op::Less => Type::Boolean(lhsn < rhsn),
@@ -262,7 +249,21 @@ impl Env {
                     std::process::exit(3);
                 }
             }),
+
             AstNode::RetStmt(_) => unreachable!(),
         }
+    }
+
+    fn update_value(env: Rc<RefCell<Env>>, id: &str, val: Type) {
+        if let Some(v) = env.borrow_mut().ctx_var.get_mut(id) {
+            *v = val;
+            return;
+        }
+
+        let tmp = env.replace(Env::default());
+        if let Some(p) = &tmp.parent {
+            Env::update_value(p.clone(), id, val);
+        }
+        env.replace(tmp);
     }
 }

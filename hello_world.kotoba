@@ -1,1 +1,0 @@
-fn div(q, n): ret n % q == 0; x = 1, while x <= 100: if div(3, x): print("Fizz"); if div(5, x): print("Buzz"); if !(div3(x) or div5(x)): print(x); print("\n"), x = x + 1;

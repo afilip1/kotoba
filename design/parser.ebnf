@@ -3,7 +3,7 @@ program = block_stmt code_block? | inline_stmt ("," code_block)?;
 block_stmt = if_stmt | while_stmt | fn_stmt;
 inline_stmt = assignment_stmt | ret_stmt | expression;
 
-assignment_stmt = identifier "=" expression;
+assignment_stmt = "nonlocal"? identifier "=" expression;
 ret_stmt = "ret" expression;
 
 if_stmt = "if" expression ":" program ("else" program)? ";";

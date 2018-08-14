@@ -1,9 +1,10 @@
-cargo-features = ["edition"]
+cargo-features = ["edition", "default-run"]
 
 [package]
 name = "kotoba"
 version = "0.1.0"
 authors = ["Anton Filippov <a.filippov@protonmail.com>"]
+default-run = "main"
 edition = "2018"
 
 [dependencies]
