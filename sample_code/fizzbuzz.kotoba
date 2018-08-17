@@ -1,1 +1,10 @@
-x = 1,while x <= 100:if div(3, x):print("Fizz");if div(5, x):print("Buzz");if !(div(3, x) or div(5, x)):print(x);println(""),nonlocal x = x + 1;
+x = 1,
+while x <= 100:
+    if div(3, x):
+        print("Fizz");
+    if div(5, x):
+        print("Buzz");
+    if !(div(3, x) or div(5, x)):
+        print(x);
+    println(""),
+    nonlocal x = x + 1;

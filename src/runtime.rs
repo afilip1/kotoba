@@ -15,16 +15,13 @@ pub enum Type {
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Type::Number(n) => n.to_string(),
-                Type::Boolean(b) => b.to_string(),
-                Type::String(s) => format!("\"{}\"", s.clone()),
-                Type::Nil => "nil".to_string(),
-            }
-        )
+        let out = match self {
+            Type::Number(n) => n.to_string(),
+            Type::Boolean(b) => b.to_string(),
+            Type::String(s) => format!("\"{}\"", s.clone()),
+            Type::Nil => "nil".to_string(),
+        };
+        write!(f, "{}", out)
     }
 }
 
@@ -35,7 +32,7 @@ enum Internal {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-enum Callable {
+crate enum Callable {
     Builtin(fn(Vec<Type>) -> Type),
     UserDefined, // TODO: impl
 }
@@ -44,7 +41,7 @@ impl Callable {
     fn call(&self, args: Vec<Type>) -> Type {
         match self {
             Callable::Builtin(f) => f(args),
-            Callable::UserDefined => Type::Nil,
+            Callable::UserDefined => unimplemented!(),
         }
     }
 }
@@ -59,13 +56,8 @@ pub struct Env {
 impl Env {
     pub fn new() -> Rc<RefCell<Env>> {
         let env = Env {
-            ctx_fn: hashmap! {
-                "print".into() => Callable::Builtin(prelude::print),
-                "println".into() => Callable::Builtin(prelude::println),
-                "add_two".into() => Callable::Builtin(prelude::add_two),
-                "div".into() => Callable::Builtin(prelude::div)
-            },
-            ..Default::default()
+            ctx_fn: prelude::init(),
+            ..Env::default()
         };
 
         Rc::new(RefCell::from(env))
@@ -161,7 +153,7 @@ impl Env {
             AstNode::Assignment {
                 identifier,
                 operand,
-                nonlocal
+                nonlocal,
             } => {
                 let res = Env::eval_internal(env.clone(), operand).unwrap();
                 if *nonlocal {

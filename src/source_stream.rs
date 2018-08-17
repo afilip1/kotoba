@@ -19,7 +19,7 @@ pub struct SourceStream<'source> {
     cur_char: usize,
 }
 
-impl SourceStream<'source> {
+impl<'source> SourceStream<'source> {
     /// Initializes a new `SourceStream` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
     pub fn new(source: &'source str) -> Self {

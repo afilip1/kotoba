@@ -1,10 +1,10 @@
-#![feature(rust_2018_preview, map_get_key_value)]
+#![feature(rust_2018_preview)]
 
 macro_rules! hashmap {
     ($($key:expr => $value:expr),*) => ({
-        let mut tmp = std::collections::HashMap::new();
-        $(tmp.insert($key, $value);)*
-        tmp
+        let mut map = std::collections::HashMap::new();
+        $(map.insert($key, $value);)*
+        map
     });
 }
 

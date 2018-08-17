@@ -4,7 +4,5 @@ cargo-features = ["edition", "default-run"]
 name = "kotoba"
 version = "0.1.0"
 authors = ["Anton Filippov <a.filippov@protonmail.com>"]
-default-run = "main"
+default-run = "file_eval"
 edition = "2018"
-
-[dependencies]

@@ -108,7 +108,7 @@ pub struct Parser<'source> {
     lexer: Lexer<'source>,
 }
 
-impl Parser<'source> {
+impl<'source> Parser<'source> {
     pub fn new(source: &'source str) -> Self {
         Parser {
             lexer: Lexer::new(source),
@@ -228,7 +228,7 @@ impl Parser<'source> {
         let identifier = self
             .lexer
             .expect_identifier()
-            .ok_or(Error::MissingIdentifier(t.clone()))?;
+            .ok_or_else(|| Error::MissingIdentifier(t.clone()))?;
 
         if self.lexer.expect(&TokenKind::OpenParen).is_none() {
             return Err(Error::MissingParen(t));

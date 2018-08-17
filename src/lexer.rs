@@ -45,7 +45,7 @@ pub enum TokenKind {
     While,
     Fn,
     Ret,
-    Nonlocal,
+    Nonlocal, // such hack much bodge wow
 }
 
 pub struct Lexer<'source> {
@@ -54,7 +54,7 @@ pub struct Lexer<'source> {
     peek_cache: Option<Token>,
 }
 
-impl Iterator for Lexer<'source> {
+impl<'source> Iterator for Lexer<'source> {
     type Item = Token;
 
     /// Consumes some source code, yielding an appropriate `Token`.
@@ -101,7 +101,7 @@ impl Iterator for Lexer<'source> {
     }
 }
 
-impl Lexer<'source> {
+impl<'source> Lexer<'source> {
     /// Initializes a new `Lexer` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
     pub fn new(source: &'source str) -> Self {
