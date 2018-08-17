@@ -95,8 +95,9 @@ impl<'s> Lexer<'s> {
 
     /// Peeks next token in the stream without consuming it.
     ///
-    /// Peeking a certain token the first time advances the iterator, all subsequent calls
-    /// to `peek()` and first call to `next()` will return the cached value instead.
+    /// Peeking a certain token the first time advances the iterator, all
+    /// subsequent calls to `peek()` and first call to `next()` will return
+    /// the cached value instead.
     pub fn peek(&mut self) -> Option<Token> {
         if self.peek_cache.is_none() {
             self.peek_cache = self.next();
@@ -117,16 +118,9 @@ impl<'s> Lexer<'s> {
             .and_then(|_| self.next())
     }
 
+    #[rustfmt::skip]
     pub fn expect_identifier(&mut self) -> Option<String> {
-        // self.peek().and_then(|t| match t.kind {
-        //     TokenKind::Identifier(id) => {
-        //         self.next();
-        //         Some(id)
-        //     }
-        //     _ => None,
-        // })
-
-        if let Some(Token { kind: TokenKind::Identifier(id), ..}) = self.peek() {
+        if let Some(Token { kind: TokenKind::Identifier(id), .. }) = self.peek() {
             self.next();
             return Some(id);
         }
@@ -155,7 +149,8 @@ impl<'s> Lexer<'s> {
         Token { kind, position }
     }
 
-    /// Consumes the bytes that make a number literal, yielding a `Number` token.
+    /// Consumes the bytes that make a number literal, yielding a `Number`
+    /// token.
     fn handle_number(&mut self, position: Position) -> Token {
         let start = self.source.index;
 
@@ -183,7 +178,8 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    /// Consumes the bytes that make an identifier, yielding an appropriate token.
+    /// Consumes the bytes that make an identifier, yielding an appropriate
+    /// token.
     fn handle_identifier(&mut self, position: Position) -> Token {
         let is_ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
         let kind = match self.source.take_while(is_ident) {
@@ -204,8 +200,8 @@ impl<'s> Lexer<'s> {
         Token { position, kind }
     }
 
-    /// Consumes the bytes that make a string literal, yielding a `StringLiteral` token.
-    /// Panics if no closing quote was found.
+    /// Consumes the bytes that make a string literal, yielding a
+    /// `StringLiteral` token. Panics if no closing quote was found.
     fn handle_string(&mut self, position: Position) -> Token {
         self.source.expect(b'"');
         let string_contents = self.source.take_while(|c| c != b'"');
@@ -219,7 +215,8 @@ impl<'s> Lexer<'s> {
         }
     }
 
-    /// Consumes a one-byte or a two-byte operator, yielding an appropriate token.
+    /// Consumes a one-byte or a two-byte operator, yielding an appropriate
+    /// token.
     fn handle_size_2_operator(&mut self, position: Position) -> Token {
         let c = self.source.next().unwrap();
         match self.source.peek() {

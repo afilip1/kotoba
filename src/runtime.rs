@@ -107,7 +107,7 @@ impl Env {
                             identifier: identifier.clone(),
                             args: args.clone(),
                         },
-                    ); //FIXME: cloning ಠ_ಠ
+                    ); // FIXME: cloning ಠ_ಠ
                 }
                 Ok(Type::Nil)
             }

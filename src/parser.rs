@@ -116,7 +116,7 @@ impl<'source> Parser<'source> {
     }
 
     pub fn parse(&mut self) -> AstNode {
-        //TODO: consume token stream
+        // TODO: consume token stream
         match self.parse_program() {
             Ok(AstNode::Program(p)) => AstNode::ProgramRoot(p),
             Err(err) => {
@@ -131,7 +131,7 @@ impl<'source> Parser<'source> {
         let mut stmts = vec![];
 
         while let Some(t) = self.lexer.peek() {
-            //FIXME: not sure how to remove repetition
+            // FIXME: not sure how to remove repetition
             match t.kind {
                 TokenKind::Semicolon => break,
                 TokenKind::If => {
