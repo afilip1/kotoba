@@ -37,12 +37,6 @@ impl<'source> SourceStream<'source> {
         self.source.get(self.index).cloned()
     }
 
-    /// Returns the second next byte in the stream without consuming it,
-    /// or `None` if the stream has less than two bytes left.
-    pub fn peek_second(&self) -> Option<u8> {
-        self.source.get(self.index + 1).cloned()
-    }
-
     /// Returns the next byte in the stream, consuming it,
     /// or `None` if the stream is empty.
     pub fn next(&mut self) -> Option<u8> {
@@ -72,8 +66,8 @@ impl<'source> SourceStream<'source> {
 
     /// Consumes the bytes in the stream while `predicate` is true,
     /// and returns them all as `&str`. Does not consume the first byte that
-    /// fails the `predicate` check (cf. `Iterator::take_while()`).
-    pub fn consume_while(&mut self, predicate: impl Fn(u8) -> bool) -> &'source str {
+    /// fails the `predicate` check (cf. `Iterator::take_while`).
+    pub fn take_while(&mut self, predicate: impl Fn(u8) -> bool) -> &'source str {
         let start = self.index;
         while let Some(c) = self.peek() {
             if !predicate(c) {

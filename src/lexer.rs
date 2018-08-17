@@ -50,11 +50,11 @@ pub enum TokenKind {
 
 pub struct Lexer<'source> {
     source: SourceStream<'source>,
-    lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
     peek_cache: Option<Token>,
+    lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
 }
 
-impl<'source> Iterator for Lexer<'source> {
+impl Iterator for Lexer<'_> {
     type Item = Token;
 
     /// Consumes some source code, yielding an appropriate `Token`.
@@ -64,56 +64,32 @@ impl<'source> Iterator for Lexer<'source> {
             return self.peek_cache.take();
         }
 
-        while let Some(c) = self.source.peek() {
-            match c {
-                b'0'...b'9' => return Some(self.handle_number()),
-                b'a'...b'z' | b'A'...b'Z' | b'_' => return Some(self.handle_identifier()),
-                b'"' => return Some(self.handle_string()),
-                b'=' | b'!' | b'>' | b'<' => return Some(self.handle_size_2_operator()),
-                size_1 => {
-                    let position = self.source.current_position();
-                    self.source.next();
-                    let kind = match size_1 {
-                        b' ' | b'\t' | b'\r' | b'\n' => continue, // skip whitespace
-                        b'+' => TokenKind::Plus,
-                        b'-' => TokenKind::Minus,
-                        b'*' => TokenKind::Star,
-                        b'/' => TokenKind::Slash,
-                        b'%' => TokenKind::Percent,
-                        b'(' => TokenKind::OpenParen,
-                        b')' => TokenKind::CloseParen,
-                        b':' => TokenKind::Colon,
-                        b',' => TokenKind::Comma,
-                        b';' => TokenKind::Semicolon,
-                        other => {
-                            println!(
-                                "Unrecognized byte '{}' (0x{:x}) at position {}, skipping...",
-                                other as char, other, position
-                            );
-                            continue;
-                        }
-                    };
-                    return Some(Token { kind, position });
-                }
-            }
-        }
-        None
+        self.source.take_while(|c| c.is_ascii_whitespace());
+        let position = self.source.current_position();
+
+        self.source.peek().map(|c| match c {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => self.handle_identifier(position),
+            b'=' | b'!' | b'>' | b'<' => self.handle_size_2_operator(position),
+            b'0'..=b'9' => self.handle_number(position),
+            b'"' => self.handle_string(position),
+            _ => self.handle_size_1_token(position),
+        })
     }
 }
 
-impl<'source> Lexer<'source> {
+impl<'s> Lexer<'s> {
     /// Initializes a new `Lexer` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
-    pub fn new(source: &'source str) -> Self {
+    pub fn new(source: &'s str) -> Self {
         Self {
             source: SourceStream::new(source),
+            peek_cache: None,
             lookahead_map: hashmap! {
                 b'=' => (TokenKind::EqualEqual, TokenKind::Equal),
                 b'!' => (TokenKind::BangEqual, TokenKind::Bang),
                 b'>' => (TokenKind::GreaterEqual, TokenKind::Greater),
                 b'<' => (TokenKind::LessEqual, TokenKind::Less)
             },
-            peek_cache: None,
         }
     }
 
@@ -122,47 +98,65 @@ impl<'source> Lexer<'source> {
     /// Peeking a certain token the first time advances the iterator, all subsequent calls
     /// to `peek()` and first call to `next()` will return the cached value instead.
     pub fn peek(&mut self) -> Option<Token> {
-        if self.peek_cache.is_some() {
-            return self.peek_cache.clone();
+        if self.peek_cache.is_none() {
+            self.peek_cache = self.next();
         }
 
-        self.next().map(|t| {
-            self.peek_cache = Some(t.clone());
-            t
-        })
+        self.peek_cache.clone()
     }
 
     pub fn expect(&mut self, expected: &TokenKind) -> Option<Token> {
-        if let Some(t) = self.peek() {
-            if t.kind == *expected {
-                return self.next();
-            }
-        }
-        None
+        self.peek()
+            .filter(|t| t.kind == *expected)
+            .and_then(|_| self.next())
     }
 
     pub fn expect_any(&mut self, expected: &[TokenKind]) -> Option<Token> {
-        if let Some(t) = self.peek() {
-            if expected.iter().any(|e| &t.kind == e) {
-                return self.next();
-            }
-        }
-        None
+        self.peek()
+            .filter(|t| expected.iter().any(|e| &t.kind == e))
+            .and_then(|_| self.next())
     }
 
     pub fn expect_identifier(&mut self) -> Option<String> {
-        if let Some(t) = self.peek() {
-            if let TokenKind::Identifier(id) = t.kind {
-                self.next();
-                return Some(id);
-            }
+        // self.peek().and_then(|t| match t.kind {
+        //     TokenKind::Identifier(id) => {
+        //         self.next();
+        //         Some(id)
+        //     }
+        //     _ => None,
+        // })
+
+        if let Some(Token { kind: TokenKind::Identifier(id), ..}) = self.peek() {
+            self.next();
+            return Some(id);
         }
+
         None
     }
 
+    fn handle_size_1_token(&mut self, position: Position) -> Token {
+        let kind = match self.source.next().unwrap() {
+            b'+' => TokenKind::Plus,
+            b'-' => TokenKind::Minus,
+            b'*' => TokenKind::Star,
+            b'/' => TokenKind::Slash,
+            b'%' => TokenKind::Percent,
+            b'(' => TokenKind::OpenParen,
+            b')' => TokenKind::CloseParen,
+            b':' => TokenKind::Colon,
+            b',' => TokenKind::Comma,
+            b';' => TokenKind::Semicolon,
+            other => panic!(
+                "lexical error: unrecognized byte '{}' (0x{:x}) at position {}",
+                other as char, other, position
+            ),
+        };
+
+        Token { kind, position }
+    }
+
     /// Consumes the bytes that make a number literal, yielding a `Number` token.
-    fn handle_number(&mut self) -> Token {
-        let position = self.source.current_position();
+    fn handle_number(&mut self, position: Position) -> Token {
         let start = self.source.index;
 
         // read whole part
@@ -170,14 +164,10 @@ impl<'source> Lexer<'source> {
             self.source.next();
         }
 
-        // use second char lookahead to ensure . means float, not member access
-        if let Some(b'.') = self.source.peek() {
-            if let Some(b'0'...b'9') = self.source.peek_second() {
-                // ok, read fractional part
-                self.source.expect(b'.');
-                while let Some(b'0'...b'9') = self.source.peek() {
-                    self.source.next();
-                }
+        if self.source.expect(b'.') {
+            // ok, read fractional part
+            while let Some(b'0'...b'9') = self.source.peek() {
+                self.source.next();
             }
         }
 
@@ -194,70 +184,57 @@ impl<'source> Lexer<'source> {
     }
 
     /// Consumes the bytes that make an identifier, yielding an appropriate token.
-    fn handle_identifier(&mut self) -> Token {
-        Token {
-            position: self.source.current_position(),
-            kind: match self
-                .source
-                .consume_while(|c| c.is_ascii_alphanumeric() || c == b'_')
-            {
-                "true" => TokenKind::Boolean(true),
-                "false" => TokenKind::Boolean(false),
-                "nil" => TokenKind::Nil,
-                "and" => TokenKind::And,
-                "or" => TokenKind::Or,
-                "if" => TokenKind::If,
-                "else" => TokenKind::Else,
-                "while" => TokenKind::While,
-                "fn" => TokenKind::Fn,
-                "ret" => TokenKind::Ret,
-                "nonlocal" => TokenKind::Nonlocal,
-                other => TokenKind::Identifier(other.to_owned()),
-            },
-        }
+    fn handle_identifier(&mut self, position: Position) -> Token {
+        let is_ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+        let kind = match self.source.take_while(is_ident) {
+            "true" => TokenKind::Boolean(true),
+            "false" => TokenKind::Boolean(false),
+            "nil" => TokenKind::Nil,
+            "and" => TokenKind::And,
+            "or" => TokenKind::Or,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "while" => TokenKind::While,
+            "fn" => TokenKind::Fn,
+            "ret" => TokenKind::Ret,
+            "nonlocal" => TokenKind::Nonlocal,
+            other => TokenKind::Identifier(other.to_owned()),
+        };
+
+        Token { position, kind }
     }
 
     /// Consumes the bytes that make a string literal, yielding a `StringLiteral` token.
     /// Panics if no closing quote was found.
-    fn handle_string(&mut self) -> Token {
-        let position = self.source.current_position();
-
+    fn handle_string(&mut self, position: Position) -> Token {
         self.source.expect(b'"');
-        let string_contents = self.source.consume_while(|c| c != b'"');
-        if self.source.expect(b'"') {
-            Token {
-                kind: TokenKind::StringLiteral(string_contents.to_owned()),
-                position,
-            }
-        } else {
-            println!("Unclosed string literal");
-            std::process::exit(1);
+        let string_contents = self.source.take_while(|c| c != b'"');
+        if !self.source.expect(b'"') {
+            panic!("unclosed string literal at position {}", position);
+        }
+
+        Token {
+            kind: TokenKind::StringLiteral(string_contents.to_owned()),
+            position,
         }
     }
 
     /// Consumes a one-byte or a two-byte operator, yielding an appropriate token.
-    fn handle_size_2_operator(&mut self) -> Token {
-        let c = self.source.peek().unwrap();
-        match self.source.peek_second() {
+    fn handle_size_2_operator(&mut self, position: Position) -> Token {
+        let c = self.source.next().unwrap();
+        match self.source.peek() {
             Some(b'=') => {
-                let ret = self.token_at_cur_pos(self.lookahead_map[&c].clone().0);
-                self.source.next(); //TODO: adjust position code for this
                 self.source.next();
-                ret
-            }
-            _ => {
-                let ret = self.token_at_cur_pos(self.lookahead_map[&c].clone().1);
-                self.source.next();
-                ret
-            }
-        }
-    }
 
-    /// Constructs a token with `position` set to the current position in source.
-    fn token_at_cur_pos(&self, token_kind: TokenKind) -> Token {
-        Token {
-            kind: token_kind,
-            position: self.source.current_position(),
+                Token {
+                    kind: self.lookahead_map[&c].clone().0,
+                    position,
+                }
+            }
+            _ => Token {
+                kind: self.lookahead_map[&c].clone().1,
+                position: self.source.current_position(),
+            },
         }
     }
 }
