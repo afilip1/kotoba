@@ -1,5 +1,3 @@
-#![feature(rust_2018_preview, tool_attributes)]
-
 macro_rules! hashmap {
     ($($key:expr => $value:expr),*) => ({
         let mut map = std::collections::HashMap::new();

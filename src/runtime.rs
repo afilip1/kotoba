@@ -32,7 +32,7 @@ enum Internal {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-crate enum Callable {
+pub(crate) enum Callable {
     Builtin(fn(Vec<Type>) -> Type),
     UserDefined, // TODO: impl
 }
@@ -157,7 +157,7 @@ impl Env {
             } => {
                 let res = Env::eval_internal(env.clone(), operand).unwrap();
                 if *nonlocal {
-                    Env::update_value(env, identifier, res);
+                    Env::update_value(&env, identifier, res);
                 } else {
                     env.borrow_mut().ctx_var.insert(identifier.clone(), res);
                 }
@@ -246,7 +246,7 @@ impl Env {
         }
     }
 
-    fn update_value(env: Rc<RefCell<Env>>, id: &str, val: Type) {
+    fn update_value(env: &Rc<RefCell<Env>>, id: &str, val: Type) {
         if let Some(v) = env.borrow_mut().ctx_var.get_mut(id) {
             *v = val;
             return;
@@ -254,7 +254,7 @@ impl Env {
 
         let tmp = env.replace(Env::default());
         if let Some(p) = &tmp.parent {
-            Env::update_value(p.clone(), id, val);
+            Env::update_value(p, id, val);
         }
         env.replace(tmp);
     }

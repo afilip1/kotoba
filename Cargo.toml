@@ -1,4 +1,4 @@
-cargo-features = ["edition", "default-run"]
+cargo-features = ["default-run"]
 
 [package]
 name = "kotoba"

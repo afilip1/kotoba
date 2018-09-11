@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Result};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Position {
@@ -6,23 +6,23 @@ pub struct Position {
     pub character: usize,
 }
 
-impl Display for Position {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:{}", self.line, self.character)
     }
 }
 
 pub struct SourceStream<'source> {
-    pub source: &'source [u8],
-    pub index: usize,
+    source: &'source [u8],
+    index: usize,
     cur_line: usize,
     cur_char: usize,
 }
 
-impl<'source> SourceStream<'source> {
+impl<'s> SourceStream<'s> {
     /// Initializes a new `SourceStream` with the given source code `&str`.
     /// `source` must be a valid ASCII string.
-    pub fn new(source: &'source str) -> Self {
+    pub fn new(source: &'s str) -> Self {
         Self {
             source: source.as_bytes(),
             index: 0,
@@ -55,24 +55,18 @@ impl<'source> SourceStream<'source> {
     /// If the next byte in the stream is equal to `expected`,
     /// consumes it and return `true`, otherwise returns `false`.
     pub fn expect(&mut self, expected: u8) -> bool {
-        if let Some(c) = self.peek() {
-            if c == expected {
-                self.next();
-                return true;
-            }
-        }
-        false
+        self.peek()
+            .filter(|&c| c == expected)
+            .map(|_| self.next())
+            .is_some()
     }
 
     /// Consumes the bytes in the stream while `predicate` is true,
     /// and returns them all as `&str`. Does not consume the first byte that
     /// fails the `predicate` check (cf. `Iterator::take_while`).
-    pub fn take_while(&mut self, predicate: impl Fn(u8) -> bool) -> &'source str {
+    pub fn take_while(&mut self, predicate: impl Fn(&u8) -> bool) -> &'s str {
         let start = self.index;
-        while let Some(c) = self.peek() {
-            if !predicate(c) {
-                break;
-            }
+        while self.peek().filter(&predicate).is_some() {
             self.next();
         }
         let end = self.index;

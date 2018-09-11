@@ -1,5 +1,4 @@
 use crate::source_stream::*;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -51,7 +50,6 @@ pub enum TokenKind {
 pub struct Lexer<'source> {
     source: SourceStream<'source>,
     peek_cache: Option<Token>,
-    lookahead_map: HashMap<u8, (TokenKind, TokenKind)>,
 }
 
 impl Iterator for Lexer<'_> {
@@ -64,7 +62,7 @@ impl Iterator for Lexer<'_> {
             return self.peek_cache.take();
         }
 
-        self.source.take_while(|c| c.is_ascii_whitespace());
+        self.source.take_while(u8::is_ascii_whitespace);
         let position = self.source.current_position();
 
         self.source.peek().map(|c| match c {
@@ -84,12 +82,6 @@ impl<'s> Lexer<'s> {
         Self {
             source: SourceStream::new(source),
             peek_cache: None,
-            lookahead_map: hashmap! {
-                b'=' => (TokenKind::EqualEqual, TokenKind::Equal),
-                b'!' => (TokenKind::BangEqual, TokenKind::Bang),
-                b'>' => (TokenKind::GreaterEqual, TokenKind::Greater),
-                b'<' => (TokenKind::LessEqual, TokenKind::Less)
-            },
         }
     }
 
@@ -152,36 +144,33 @@ impl<'s> Lexer<'s> {
     /// Consumes the bytes that make a number literal, yielding a `Number`
     /// token.
     fn handle_number(&mut self, position: Position) -> Token {
-        let start = self.source.index;
-
+        let mut acc = 0.0;
+        
         // read whole part
         while let Some(b'0'...b'9') = self.source.peek() {
-            self.source.next();
+            acc *= 10.0;
+            acc += f64::from(self.source.next().unwrap() - b'0');
         }
 
         if self.source.expect(b'.') {
+            let mut fraction = 10.0;
             // ok, read fractional part
             while let Some(b'0'...b'9') = self.source.peek() {
-                self.source.next();
+                acc += f64::from(self.source.next().unwrap() - b'0') / fraction;
+                fraction *= 10.0;
             }
         }
 
-        let end = self.source.index;
-        let number = std::str::from_utf8(&self.source.source[start..end])
-            .unwrap()
-            .parse()
-            .unwrap();
-
         Token {
             position,
-            kind: TokenKind::Number(number),
+            kind: TokenKind::Number(acc),
         }
     }
 
     /// Consumes the bytes that make an identifier, yielding an appropriate
     /// token.
     fn handle_identifier(&mut self, position: Position) -> Token {
-        let is_ident = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+        let is_ident = |c: &u8| c.is_ascii_alphanumeric() || *c == b'_';
         let kind = match self.source.take_while(is_ident) {
             "true" => TokenKind::Boolean(true),
             "false" => TokenKind::Boolean(false),
@@ -204,7 +193,7 @@ impl<'s> Lexer<'s> {
     /// `StringLiteral` token. Panics if no closing quote was found.
     fn handle_string(&mut self, position: Position) -> Token {
         self.source.expect(b'"');
-        let string_contents = self.source.take_while(|c| c != b'"');
+        let string_contents = self.source.take_while(|c| *c != b'"');
         if !self.source.expect(b'"') {
             panic!("unclosed string literal at position {}", position);
         }
@@ -219,19 +208,26 @@ impl<'s> Lexer<'s> {
     /// token.
     fn handle_size_2_operator(&mut self, position: Position) -> Token {
         let c = self.source.next().unwrap();
-        match self.source.peek() {
+        let kind = match self.source.peek() {
             Some(b'=') => {
                 self.source.next();
-
-                Token {
-                    kind: self.lookahead_map[&c].clone().0,
-                    position,
+                match c {
+                    b'=' => TokenKind::EqualEqual,
+                    b'!' => TokenKind::BangEqual,
+                    b'>' => TokenKind::GreaterEqual,
+                    b'<' => TokenKind::LessEqual,
+                    _ => unreachable!(),
                 }
             }
-            _ => Token {
-                kind: self.lookahead_map[&c].clone().1,
-                position: self.source.current_position(),
+            _ => match c {
+                b'=' => TokenKind::Equal,
+                b'!' => TokenKind::Bang,
+                b'>' => TokenKind::Greater,
+                b'<' => TokenKind::Less,
+                _ => unreachable!(),
             },
-        }
+        };
+
+        Token { kind, position }
     }
 }
